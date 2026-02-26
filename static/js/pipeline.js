@@ -41,51 +41,51 @@ let iconNames = [];
 let parsedSpec = null;
 
 // ═══════════════════════════════════
-// STEP 1 — Brief
+// STEP 1 — Generate Brief
 // ═══════════════════════════════════
-const s1Prompt = document.getElementById('s1Prompt');
-const s1Output = document.getElementById('s1Output');
-const s1Status = document.getElementById('s1Status');
-const s1Send = document.getElementById('s1Send');
-const s1Model = document.getElementById('s1Model');
-const s1Forward = document.getElementById('s1Forward');
-const s1Timer = createTimer(s1Status);
-let s1Ctrl = null;
-let s1Text = '';
+const briefPrompt = document.getElementById('briefPrompt');
+const briefOutput = document.getElementById('briefOutput');
+const briefStatus = document.getElementById('briefStatus');
+const briefSend = document.getElementById('briefSend');
+const briefModel = document.getElementById('briefModel');
+const briefForward = document.getElementById('briefForward');
+const briefTimer = createTimer(briefStatus);
+let briefCtrl = null;
+let briefText = '';
 
-s1Prompt.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runStep1(); }
+briefPrompt.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runBrief(); }
 });
 
-async function runStep1() {
-  const prompt = s1Prompt.value.trim();
+async function runBrief() {
+  const prompt = briefPrompt.value.trim();
   if (!prompt) return;
-  if (s1Ctrl) s1Ctrl.abort();
-  s1Ctrl = new AbortController();
+  if (briefCtrl) briefCtrl.abort();
+  briefCtrl = new AbortController();
 
-  s1Send.disabled = true;
-  s1Send.textContent = 'Generating...';
-  s1Output.className = 'output-card visible';
-  s1Output.innerHTML = '<div class="loading"><div class="spinner"></div>Thinking...</div>';
-  s1Forward.style.display = 'none';
-  s1Timer.start();
+  briefSend.disabled = true;
+  briefSend.textContent = 'Generating...';
+  briefOutput.className = 'output-card visible';
+  briefOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Thinking...</div>';
+  briefForward.style.display = 'none';
+  briefTimer.start();
 
   try {
     const res = await fetch('/api/pipeline/brief', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: s1Model.value }),
-      signal: s1Ctrl.signal,
+      body: JSON.stringify({ prompt, model: briefModel.value }),
+      signal: briefCtrl.signal,
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
 
-    s1Timer.stop();
-    s1Text = data.text || '(empty)';
-    s1Output.className = 'output-card visible';
+    briefTimer.stop();
+    briefText = data.text || '(empty)';
+    briefOutput.className = 'output-card visible';
 
     try {
-      parsedSpec = JSON.parse(s1Text);
+      parsedSpec = JSON.parse(briefText);
       iconNames = (parsedSpec.icons || []).map(ic => ic.name);
 
       let html = '<div style="margin-bottom:8px"><strong>Style:</strong> '
@@ -95,138 +95,138 @@ async function runStep1() {
         html += '<li><strong>' + ic.name + '</strong> \u2014 ' + ic.description + '</li>';
       });
       html += '</ol>';
-      s1Output.innerHTML = html;
+      briefOutput.innerHTML = html;
     } catch (_) {
       parsedSpec = null;
       iconNames = [];
-      s1Output.textContent = s1Text;
+      briefOutput.textContent = briefText;
     }
 
     const cp = document.createElement('button');
     cp.className = 'copy-btn';
     cp.textContent = 'Copy JSON';
     cp.addEventListener('click', () => {
-      navigator.clipboard.writeText(s1Text);
+      navigator.clipboard.writeText(briefText);
       cp.textContent = 'Copied!';
       setTimeout(() => cp.textContent = 'Copy JSON', 1500);
     });
-    s1Output.prepend(cp);
+    briefOutput.prepend(cp);
 
-    s1Forward.style.display = 'inline-block';
-    s1Status.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
+    briefForward.style.display = 'inline-block';
+    briefStatus.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
     if (e.name === 'AbortError') return;
-    s1Timer.stop();
-    s1Output.className = 'output-card visible error';
-    s1Output.textContent = e.message;
-    s1Status.textContent = '';
+    briefTimer.stop();
+    briefOutput.className = 'output-card visible error';
+    briefOutput.textContent = e.message;
+    briefStatus.textContent = '';
   } finally {
-    s1Send.disabled = false;
-    s1Send.textContent = 'Generate Brief';
-    s1Ctrl = null;
+    briefSend.disabled = false;
+    briefSend.textContent = 'Generate Brief';
+    briefCtrl = null;
   }
 }
 
-function forwardToStep2() {
-  document.getElementById('s2Prompt').value = s1Text;
-  document.getElementById('s2Prompt').scrollIntoView({ behavior: 'smooth', block: 'center' });
+function forwardToImageGen() {
+  imageGenPrompt.value = briefText;
+  imageGenPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ═══════════════════════════════════
-// STEP 2 — Image Generation
+// STEP 2 — Generate Icon Grid
 // ═══════════════════════════════════
-const s2Prompt = document.getElementById('s2Prompt');
-const s2ImageOutput = document.getElementById('s2ImageOutput');
-const s2Output = document.getElementById('s2Output');
-const s2Status = document.getElementById('s2Status');
-const s2Send = document.getElementById('s2Send');
-const s2Model = document.getElementById('s2Model');
-const s2Forward = document.getElementById('s2Forward');
-const s2Timer = createTimer(s2Status);
-let s2Ctrl = null;
+const imageGenPrompt = document.getElementById('imageGenPrompt');
+const imageGenImageOutput = document.getElementById('imageGenImageOutput');
+const imageGenOutput = document.getElementById('imageGenOutput');
+const imageGenStatus = document.getElementById('imageGenStatus');
+const imageGenSend = document.getElementById('imageGenSend');
+const imageGenModel = document.getElementById('imageGenModel');
+const imageGenForward = document.getElementById('imageGenForward');
+const imageGenTimer = createTimer(imageGenStatus);
+let imageGenCtrl = null;
 
-s2Prompt.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runStep2(); }
+imageGenPrompt.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runImageGen(); }
 });
 
-async function runStep2() {
-  const brief = s2Prompt.value.trim();
+async function runImageGen() {
+  const brief = imageGenPrompt.value.trim();
   if (!brief) return;
-  if (s2Ctrl) s2Ctrl.abort();
-  s2Ctrl = new AbortController();
+  if (imageGenCtrl) imageGenCtrl.abort();
+  imageGenCtrl = new AbortController();
 
   const prompt = IMAGE_GEN_PROMPT + brief + IMAGE_GEN_SUFFIX;
 
-  s2Send.disabled = true;
-  s2Send.textContent = 'Generating...';
-  s2ImageOutput.className = 'image-output';
-  s2ImageOutput.innerHTML = '';
-  s2Output.className = 'output-card visible';
-  s2Output.innerHTML = '<div class="loading"><div class="spinner"></div>Generating image...</div>';
-  s2Forward.style.display = 'none';
-  s2Timer.start();
+  imageGenSend.disabled = true;
+  imageGenSend.textContent = 'Generating...';
+  imageGenImageOutput.className = 'image-output';
+  imageGenImageOutput.innerHTML = '';
+  imageGenOutput.className = 'output-card visible';
+  imageGenOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Generating image...</div>';
+  imageGenForward.style.display = 'none';
+  imageGenTimer.start();
 
   try {
     const res = await fetch('/api/pipeline/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: s2Model.value }),
-      signal: s2Ctrl.signal,
+      body: JSON.stringify({ prompt, model: imageGenModel.value }),
+      signal: imageGenCtrl.signal,
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
 
-    s2Timer.stop();
+    imageGenTimer.stop();
     generatedImageData = data.image;
 
-    s2Output.className = 'output-card';
-    s2Output.innerHTML = '';
+    imageGenOutput.className = 'output-card';
+    imageGenOutput.innerHTML = '';
     if (data.text) {
-      s2Output.className = 'output-card visible';
-      s2Output.textContent = data.text;
+      imageGenOutput.className = 'output-card visible';
+      imageGenOutput.textContent = data.text;
     }
 
     const img = document.createElement('img');
     img.src = data.image;
-    s2ImageOutput.innerHTML = '';
-    s2ImageOutput.appendChild(img);
-    s2ImageOutput.className = 'image-output visible';
+    imageGenImageOutput.innerHTML = '';
+    imageGenImageOutput.appendChild(img);
+    imageGenImageOutput.className = 'image-output visible';
 
-    s2Forward.style.display = 'inline-block';
-    s2Status.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
+    imageGenForward.style.display = 'inline-block';
+    imageGenStatus.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
     if (e.name === 'AbortError') return;
-    s2Timer.stop();
-    s2Output.className = 'output-card visible error';
-    s2Output.textContent = e.message;
-    s2Status.textContent = '';
+    imageGenTimer.stop();
+    imageGenOutput.className = 'output-card visible error';
+    imageGenOutput.textContent = e.message;
+    imageGenStatus.textContent = '';
   } finally {
-    s2Send.disabled = false;
-    s2Send.textContent = 'Generate Image';
-    s2Ctrl = null;
+    imageGenSend.disabled = false;
+    imageGenSend.textContent = 'Generate Image';
+    imageGenCtrl = null;
   }
 }
 
 // ═══════════════════════════════════
-// STEP 2b — Crop (deterministic)
+// STEP 3 — Crop Icons (deterministic)
 // ═══════════════════════════════════
-const s2bOutput = document.getElementById('s2bOutput');
-const s2bGrid = document.getElementById('s2bGrid');
-const s2bStatus = document.getElementById('s2bStatus');
-const s2bForward = document.getElementById('s2bForward');
-const s2bTimer = createTimer(s2bStatus);
+const cropOutput = document.getElementById('cropOutput');
+const cropGrid = document.getElementById('cropGrid');
+const cropStatus = document.getElementById('cropStatus');
+const cropForward = document.getElementById('cropForward');
+const cropTimer = createTimer(cropStatus);
 
-async function runStep2b() {
+async function runCrop() {
   if (!generatedImageData) return;
   croppedIcons = [];
   tracedSvgs = [];
 
-  s2bOutput.className = 'output-card visible';
-  s2bOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Cropping icons...</div>';
-  s2bGrid.style.display = 'none';
-  s2bGrid.innerHTML = '';
-  s2bForward.style.display = 'none';
-  s2bTimer.start();
+  cropOutput.className = 'output-card visible';
+  cropOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Cropping icons...</div>';
+  cropGrid.style.display = 'none';
+  cropGrid.innerHTML = '';
+  cropForward.style.display = 'none';
+  cropTimer.start();
 
   try {
     const res = await fetch('/api/pipeline/crop', {
@@ -237,49 +237,76 @@ async function runStep2b() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
 
-    s2bTimer.stop();
+    cropTimer.stop();
     croppedIcons = data.icons;
 
-    s2bOutput.className = 'output-card';
-    s2bOutput.innerHTML = '';
+    cropOutput.className = 'output-card';
+    cropOutput.innerHTML = '';
 
-    s2bGrid.innerHTML = '';
+    cropGrid.innerHTML = '';
     data.icons.forEach((src, i) => {
       const cell = document.createElement('div');
       cell.className = 'icon-grid-cell';
       cell.innerHTML = '<span class="cell-label">' + (i + 1) + '</span>'
         + '<img src="' + src + '">';
-      s2bGrid.appendChild(cell);
+      cropGrid.appendChild(cell);
     });
-    s2bGrid.style.display = 'grid';
+    cropGrid.style.display = 'grid';
 
-    s2bForward.style.display = 'inline-block';
-    s2bStatus.innerHTML = 'Cropped in <span class="timer">' + data.elapsed + 's</span>';
+    cropForward.style.display = 'inline-block';
+    cropStatus.innerHTML = 'Cropped in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
-    s2bTimer.stop();
-    s2bOutput.className = 'output-card visible error';
-    s2bOutput.textContent = e.message;
-    s2bStatus.textContent = '';
+    cropTimer.stop();
+    cropOutput.className = 'output-card visible error';
+    cropOutput.textContent = e.message;
+    cropStatus.textContent = '';
   }
 }
 
 // ═══════════════════════════════════
-// STEP 2c — Trace (deterministic)
+// STEP 4 — Trace Icons (deterministic)
 // ═══════════════════════════════════
-const s2cOutput = document.getElementById('s2cOutput');
-const s2cGrid = document.getElementById('s2cGrid');
-const s2cStatus = document.getElementById('s2cStatus');
-const s2cTimer = createTimer(s2cStatus);
+const traceOutput = document.getElementById('traceOutput');
+const traceGrid = document.getElementById('traceGrid');
+const traceStatus = document.getElementById('traceStatus');
+const traceActions = document.getElementById('traceActions');
+const traceShowAll = document.getElementById('traceShowAll');
+const traceAllCode = document.getElementById('traceAllCode');
+const traceTimer = createTimer(traceStatus);
 
-async function runStep2c() {
+function getAllSvgText() {
+  return tracedSvgs.join('\n\n');
+}
+
+function toggleAllCode() {
+  traceAllCode.classList.toggle('hidden');
+  if (!traceAllCode.classList.contains('hidden')) {
+    traceAllCode.textContent = getAllSvgText();
+    traceShowAll.textContent = 'Hide All Code';
+  } else {
+    traceShowAll.textContent = 'Show All Code';
+  }
+}
+
+function copyAllSvgs() {
+  navigator.clipboard.writeText(getAllSvgText());
+  const btn = document.getElementById('traceCopyAll');
+  btn.textContent = 'Copied!';
+  setTimeout(() => btn.textContent = 'Copy All SVGs', 1500);
+}
+
+async function runTrace() {
   if (!croppedIcons.length) return;
   tracedSvgs = [];
 
-  s2cOutput.className = 'output-card visible';
-  s2cOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing 9 icons...</div>';
-  s2cGrid.style.display = 'none';
-  s2cGrid.innerHTML = '';
-  s2cTimer.start();
+  traceOutput.className = 'output-card visible';
+  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing 9 icons...</div>';
+  traceGrid.style.display = 'none';
+  traceGrid.innerHTML = '';
+  traceActions.style.display = 'none';
+  traceAllCode.classList.add('hidden');
+  traceShowAll.textContent = 'Show All Code';
+  traceTimer.start();
 
   try {
     const res = await fetch('/api/pipeline/trace', {
@@ -290,13 +317,13 @@ async function runStep2c() {
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
 
-    s2cTimer.stop();
+    traceTimer.stop();
     tracedSvgs = data.svgs;
 
-    s2cOutput.className = 'output-card';
-    s2cOutput.innerHTML = '';
+    traceOutput.className = 'output-card';
+    traceOutput.innerHTML = '';
 
-    s2cGrid.innerHTML = '';
+    traceGrid.innerHTML = '';
     data.svgs.forEach((svg, i) => {
       const row = document.createElement('div');
       row.className = 'trace-row';
@@ -350,17 +377,17 @@ async function runStep2c() {
         setTimeout(() => cpBtn.textContent = 'Copy SVG', 1500);
       });
 
-      s2cGrid.appendChild(row);
+      traceGrid.appendChild(row);
     });
-    s2cGrid.style.display = 'flex';
+    traceGrid.style.display = 'flex';
+    traceActions.style.display = 'flex';
     toolbox.classList.add('visible');
 
-    s2cStatus.innerHTML = 'Traced in <span class="timer">' + data.elapsed + 's</span>';
+    traceStatus.innerHTML = 'Traced in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
-    s2cTimer.stop();
-    s2cOutput.className = 'output-card visible error';
-    s2cOutput.textContent = e.message;
-    s2cStatus.textContent = '';
+    traceTimer.stop();
+    traceOutput.className = 'output-card visible error';
+    traceOutput.textContent = e.message;
+    traceStatus.textContent = '';
   }
 }
-
