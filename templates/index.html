@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini Icon Studio</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/studio.css') }}">
+</head>
+<body>
+
+<div class="split-layout">
+
+  <!-- ── LEFT: Spec Generator ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Spec Generator</h2>
+      <span class="badge badge-spec">Prompt</span>
+      <a href="/pipeline" style="margin-left:auto;font-size:0.75rem;color:#888;text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='#8b5cf6'" onmouseout="this.style.color='#888'">Pipeline &#8594;</a>
+    </div>
+    <div class="panel-body">
+      <div class="controls">
+        <select id="specModel">
+          <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+        </select>
+      </div>
+      <div class="input-area">
+        <textarea id="specPrompt" placeholder="Describe the icon set you need..." autofocus></textarea>
+        <div class="input-footer">
+          <button id="specSend" onclick="generateSpec()">Send</button>
+        </div>
+      </div>
+      <div id="specOutput" class="output-card"></div>
+      <div id="specStatus" class="status"></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── RIGHT: Icon Generator ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Icon Generator</h2>
+      <span class="badge badge-icons">SVG</span>
+    </div>
+    <div class="panel-body">
+      <div class="controls">
+        <select id="iconsModel">
+          <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+        </select>
+      </div>
+      <div class="input-area">
+        <textarea id="iconsPrompt" placeholder="Paste spec or describe icons to generate..."></textarea>
+        <div class="input-footer">
+          <button id="iconsSend" onclick="generateIcons()">Generate</button>
+        </div>
+      </div>
+      <div id="iconsOutput" class="output-card"></div>
+      <div id="iconsStatus" class="status"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toolbox" class="toolbox">
+  <div class="toolbox-group">
+    <label>Mode</label>
+    <button id="modeBtn" class="toolbox-btn" onclick="toggleGlobalMode()">&#9788; Light</button>
+  </div>
+  <div class="toolbox-divider"></div>
+  <div class="toolbox-group">
+    <label>Size</label>
+    <input id="sizeSlider" type="range" class="size-slider" min="0" max="100" value="100">
+    <span id="sizeValue" class="size-value">100%</span>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/studio.js') }}"></script>
+</body>
+</html>

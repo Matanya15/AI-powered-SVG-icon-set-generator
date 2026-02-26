@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Icon Pipeline</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pipeline.css') }}">
+</head>
+<body>
+<div class="container">
+
+  <div class="top-bar">
+    <h1><span>&#9670;</span> Icon Pipeline</h1>
+    <a href="/">Back to Studio</a>
+  </div>
+
+  <!-- ═══ STEP 1: Brief ═══ -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h3>Generate Brief</h3>
+      <span class="step-badge badge-text">Text</span>
+    </div>
+    <div class="step-body">
+      <div class="controls">
+        <select id="s1Model">
+          <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+        </select>
+      </div>
+      <div class="input-area">
+        <textarea id="s1Prompt" placeholder="Describe what you need icons for..." autofocus></textarea>
+        <div class="input-footer">
+          <button id="s1Send" onclick="runStep1()">Generate Brief</button>
+        </div>
+      </div>
+      <div id="s1Output" class="output-card"></div>
+      <div class="step-actions">
+        <button id="s1Forward" class="btn-secondary" style="display:none" onclick="forwardToStep2()">Use as Step 2 input &#8594;</button>
+      </div>
+      <div id="s1Status" class="status"></div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="pipe-line"></div>
+    <span class="pipe-label pipe-json">JSON</span>
+    <div class="pipe-line"></div>
+  </div>
+
+  <!-- ═══ STEP 2: Image Generation ═══ -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h3>Generate Icon Grid</h3>
+      <span class="step-badge badge-image">Image</span>
+    </div>
+    <div class="step-body">
+      <div class="controls">
+        <select id="s2Model">
+          <option value="gemini-3.1-flash-image-preview" selected>Gemini 3.1 Flash Image</option>
+        </select>
+      </div>
+      <div class="input-area">
+        <textarea id="s2Prompt" placeholder="Paste brief or describe the 9 icons for the 3x3 grid..."></textarea>
+        <div class="input-footer">
+          <button id="s2Send" onclick="runStep2()">Generate Image</button>
+        </div>
+      </div>
+      <div id="s2ImageOutput" class="image-output"></div>
+      <div id="s2Output" class="output-card"></div>
+      <div class="step-actions">
+        <button id="s2Forward" class="btn-secondary" style="display:none" onclick="runStep2b()">Crop Icons &#8594;</button>
+      </div>
+      <div id="s2Status" class="status"></div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="pipe-line"></div>
+    <span class="pipe-label pipe-png">PNG</span>
+    <div class="pipe-line"></div>
+  </div>
+
+  <!-- ═══ STEP 2b: Crop (deterministic) ═══ -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num" style="background:#059669">2b</div>
+      <h3>Crop Icons</h3>
+      <span class="step-badge" style="background:#1e3a2f;color:#34d399">Deterministic</span>
+    </div>
+    <div class="step-body">
+      <div id="s2bOutput" class="output-card"></div>
+      <div id="s2bGrid" class="icon-grid" style="display:none"></div>
+      <div class="step-actions">
+        <button id="s2bForward" class="btn-secondary" style="display:none" onclick="runStep2c()">Trace to SVG &#8594;</button>
+      </div>
+      <div id="s2bStatus" class="status"></div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="pipe-line"></div>
+    <span class="pipe-label pipe-png">PNG</span>
+    <div class="pipe-line"></div>
+  </div>
+
+  <!-- ═══ STEP 2c: Trace (deterministic) ═══ -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num" style="background:#059669">2c</div>
+      <h3>Trace Icons</h3>
+      <span class="step-badge" style="background:#1e3a2f;color:#34d399">Deterministic</span>
+    </div>
+    <div class="step-body">
+      <div id="s2cOutput" class="output-card"></div>
+      <div id="s2cGrid" class="trace-list" style="display:none"></div>
+      <div class="step-actions">
+        <button id="s2cForward" class="btn-secondary" style="display:none" onclick="forwardToStep3()">Send to AI &#8594;</button>
+      </div>
+      <div id="s2cStatus" class="status"></div>
+    </div>
+  </div>
+
+  <div class="pipe">
+    <div class="pipe-line"></div>
+    <span class="pipe-label pipe-svg">SVG</span>
+    <div class="pipe-line"></div>
+  </div>
+
+  <!-- ═══ STEP 3: AI Clean ═══ -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h3>AI Clean &amp; Polish</h3>
+      <span class="step-badge badge-svg">SVG</span>
+    </div>
+    <div class="step-body">
+      <div class="controls">
+        <select id="s3Model">
+          <option value="gemini-3.1-pro-preview" selected>Gemini 3.1 Pro</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+          <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+        </select>
+      </div>
+      <div id="s3Previews" class="icon-grid" style="display:none"></div>
+      <div class="input-area">
+        <textarea id="s3Prompt" placeholder="Optional: additional instructions for cleaning..."></textarea>
+        <div class="input-footer">
+          <button id="s3Send" onclick="runStep3()">Clean Icons</button>
+        </div>
+      </div>
+      <div id="s3Output" class="output-card"></div>
+      <div id="s3Status" class="status"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toolbox" class="toolbox">
+  <div class="toolbox-group">
+    <label>Mode</label>
+    <button id="modeBtn" class="toolbox-btn" onclick="toggleMode()">&#9788; Light</button>
+  </div>
+  <div class="toolbox-divider"></div>
+  <div class="toolbox-group">
+    <label>Size</label>
+    <input id="sizeSlider" type="range" class="size-slider" min="0" max="100" value="100">
+    <span id="sizeValue" class="size-value">100%</span>
+  </div>
+</div>
+
+<script>
+  const IMAGE_GEN_PROMPT = {{ image_gen_prompt | tojson }};
+  const IMAGE_GEN_SUFFIX = {{ image_gen_suffix | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/pipeline.js') }}"></script>
+</body>
+</html>
