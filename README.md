@@ -5,12 +5,11 @@ AI-powered SVG icon set generator built with Google Gemini and Flask. Generate c
 ## Features
 
 - **Icon Studio** — Split-screen workspace for generating icon specifications and SVG icons via direct AI prompting
-- **Icon Pipeline** — Multi-step pipeline that produces production-ready icon sets:
+- **Icon Pipeline** — Multi-step pipeline that produces icon sets:
   1. **Brief Generation** — AI generates a structured JSON spec from a text description
   2. **Image Generation** — Gemini Flash Image renders a 3x3 grid of icons as a single PNG
   3. **Deterministic Crop** — Splits the grid into 9 individual icon images (Pillow)
   4. **Deterministic Trace** — Converts each PNG to SVG via bitmap tracing (Potrace)
-  5. **AI Clean & Polish** — AI optimizes the traced SVGs into production-ready icons
 - Dark/light mode toggle and resizable SVG previews
 - Copy-to-clipboard for all generated SVG code
 

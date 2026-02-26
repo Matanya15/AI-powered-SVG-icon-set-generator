@@ -13,7 +13,7 @@ from flask import Flask, request, jsonify, render_template
 from google import genai
 from google.genai import types
 from google.genai.types import Modality
-from system_prompt import SYSTEM_PROMPT, SPEC_PROMPT, SVG_CONVERT_PROMPT, IMAGE_GEN_PROMPT, IMAGE_GEN_SUFFIX
+from system_prompt import SYSTEM_PROMPT, SPEC_PROMPT, IMAGE_GEN_PROMPT, IMAGE_GEN_SUFFIX
 
 load_dotenv()
 
@@ -271,44 +271,6 @@ def pipeline_trace():
         return jsonify({"svgs": svgs, "elapsed": elapsed})
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 502
-
-
-@app.route("/api/pipeline/convert-svg", methods=["POST"])
-def pipeline_convert_svg():
-    """Clean up each icon: receives 9 traced SVGs only."""
-    data = request.json
-    svgs = data.get("svgs", [])
-    model = data.get("model", AVAILABLE_MODELS[0])
-    prompt = data.get("prompt", "").strip()
-
-    if not svgs:
-        return jsonify({"error": "No traced SVGs provided"}), 400
-
-    kwargs = {"system_instruction": SVG_CONVERT_PROMPT}
-    if model in THINKING_MODELS:
-        kwargs["thinking_config"] = types.ThinkingConfig(thinking_level="low")
-    config = types.GenerateContentConfig(**kwargs)
-
-    contents = []
-    for i, svg_code in enumerate(svgs, 1):
-        contents.append(f"--- Icon {i} ---\n{svg_code}")
-
-    if prompt:
-        contents.append(prompt)
-    else:
-        contents.append(
-            "Clean up each of the 9 icons above. Return 9 polished SVG blocks."
-        )
-
-    try:
-        start = time.time()
-        response = client.models.generate_content(
-            model=model, contents=contents, config=config,
-        )
-        elapsed = round(time.time() - start, 1)
-        return jsonify({"text": response.text, "elapsed": elapsed})
-    except Exception as e:
         return jsonify({"error": str(e)}), 502
 
 

@@ -269,7 +269,6 @@ async function runStep2b() {
 const s2cOutput = document.getElementById('s2cOutput');
 const s2cGrid = document.getElementById('s2cGrid');
 const s2cStatus = document.getElementById('s2cStatus');
-const s2cForward = document.getElementById('s2cForward');
 const s2cTimer = createTimer(s2cStatus);
 
 async function runStep2c() {
@@ -280,7 +279,6 @@ async function runStep2c() {
   s2cOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing 9 icons...</div>';
   s2cGrid.style.display = 'none';
   s2cGrid.innerHTML = '';
-  s2cForward.style.display = 'none';
   s2cTimer.start();
 
   try {
@@ -357,7 +355,6 @@ async function runStep2c() {
     s2cGrid.style.display = 'flex';
     toolbox.classList.add('visible');
 
-    s2cForward.style.display = 'inline-block';
     s2cStatus.innerHTML = 'Traced in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
     s2cTimer.stop();
@@ -367,155 +364,3 @@ async function runStep2c() {
   }
 }
 
-function forwardToStep3() {
-  if (!croppedIcons.length || !tracedSvgs.length) return;
-
-  const grid = document.getElementById('s3Previews');
-  grid.innerHTML = '';
-  tracedSvgs.forEach((svg, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'icon-grid-cell';
-    const wrap = document.createElement('div');
-    wrap.className = 'svg-wrap';
-    wrap.innerHTML = svg || '';
-    const svgEl = wrap.querySelector('svg');
-    if (svgEl) { svgEl.style.width = '100%'; svgEl.style.height = 'auto'; }
-    cell.innerHTML = '<span class="cell-label">' + (i + 1) + '</span>';
-    cell.appendChild(wrap);
-    grid.appendChild(cell);
-  });
-  grid.style.display = 'grid';
-  document.getElementById('s3Prompt').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// ═══════════════════════════════════
-// STEP 3 — AI Clean & Polish
-// ═══════════════════════════════════
-const s3Prompt = document.getElementById('s3Prompt');
-const s3Output = document.getElementById('s3Output');
-const s3Status = document.getElementById('s3Status');
-const s3Send = document.getElementById('s3Send');
-const s3Model = document.getElementById('s3Model');
-const s3Timer = createTimer(s3Status);
-let s3Ctrl = null;
-
-s3Prompt.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runStep3(); }
-});
-
-async function runStep3() {
-  if (!croppedIcons.length || !tracedSvgs.length) {
-    s3Output.className = 'output-card visible error';
-    s3Output.textContent = 'Complete Steps 2b and 2c first (crop, then trace).';
-    return;
-  }
-  if (s3Ctrl) s3Ctrl.abort();
-  s3Ctrl = new AbortController();
-
-  s3Send.disabled = true;
-  s3Send.textContent = 'Cleaning...';
-  s3Output.className = 'output-card visible';
-  s3Output.innerHTML = '<div class="loading"><div class="spinner"></div>AI cleaning icons...</div>';
-  s3Timer.start();
-
-  try {
-    const res = await fetch('/api/pipeline/convert-svg', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        svgs: tracedSvgs,
-        model: s3Model.value,
-        prompt: s3Prompt.value.trim(),
-      }),
-      signal: s3Ctrl.signal,
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
-
-    s3Timer.stop();
-    renderSvgs(data.text || '');
-    s3Status.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
-  } catch (e) {
-    if (e.name === 'AbortError') return;
-    s3Timer.stop();
-    s3Output.className = 'output-card visible error';
-    s3Output.textContent = e.message;
-    s3Status.textContent = '';
-  } finally {
-    s3Send.disabled = false;
-    s3Send.textContent = 'Clean Icons';
-    s3Ctrl = null;
-  }
-}
-
-function renderSvgs(rawText) {
-  s3Output.innerHTML = '';
-  s3Output.className = 'output-card visible';
-
-  let text = rawText.replace(/```(?:svg|xml|html)?\s*\n?(<svg[\s\S]*?<\/svg>)\s*\n?```/gi, '$1');
-  const re = /<svg[\s\S]*?<\/svg>/gi;
-  let last = 0, m, hasSvg = false;
-
-  while ((m = re.exec(text)) !== null) {
-    hasSvg = true;
-    const src = m[0];
-
-    if (m.index > last) {
-      const sp = document.createElement('span');
-      sp.className = 'text-segment';
-      sp.textContent = text.slice(last, m.index);
-      s3Output.appendChild(sp);
-    }
-
-    const block = document.createElement('div');
-    block.className = 'svg-block';
-
-    const preview = document.createElement('div');
-    preview.className = 'svg-preview';
-    if (lightMode) preview.classList.add('light');
-    preview.innerHTML = src;
-    const svgEl = preview.querySelector('svg');
-    if (svgEl) svgEl.style.width = sizeSlider.value + '%';
-    block.appendChild(preview);
-
-    const actions = document.createElement('div');
-    actions.className = 'svg-actions';
-    const togBtn = document.createElement('button');
-    togBtn.textContent = 'Show Code';
-    const cpBtn = document.createElement('button');
-    cpBtn.textContent = 'Copy SVG';
-    actions.appendChild(togBtn);
-    actions.appendChild(cpBtn);
-    block.appendChild(actions);
-
-    const code = document.createElement('pre');
-    code.className = 'svg-code hidden';
-    code.textContent = src;
-    block.appendChild(code);
-
-    togBtn.addEventListener('click', () => {
-      code.classList.toggle('hidden');
-      togBtn.textContent = code.classList.contains('hidden') ? 'Show Code' : 'Hide Code';
-    });
-    cpBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(src);
-      cpBtn.textContent = 'Copied!';
-      setTimeout(() => cpBtn.textContent = 'Copy SVG', 1500);
-    });
-
-    s3Output.appendChild(block);
-    last = m.index + m[0].length;
-  }
-
-  if (last < text.length) {
-    const sp = document.createElement('span');
-    sp.className = 'text-segment';
-    sp.textContent = text.slice(last);
-    s3Output.appendChild(sp);
-  }
-
-  if (hasSvg) { toolbox.classList.add('visible'); }
-  else { toolbox.classList.remove('visible'); }
-
-  if (!hasSvg && !text.trim()) { s3Output.textContent = '(empty response)'; }
-}

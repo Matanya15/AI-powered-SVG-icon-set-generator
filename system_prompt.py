@@ -56,28 +56,6 @@ Rules:
 - Return ONLY valid JSON, nothing else
 """
 
-SVG_CONVERT_PROMPT = """\
-You are an expert SVG engineer specializing in cleaning and polishing vector icons.
-
-TASK:
-You will receive 9 Potrace SVG traces, one per icon.
-Your job is to clean, optimize, and polish each traced SVG into a production-ready icon.
-
-INSTRUCTIONS:
-- Start from the Potrace SVG paths — preserve the shapes exactly, do NOT redraw or invent new icons.
-- Clean up paths: remove unnecessary precision, simplify curves, merge redundant shapes.
-- Set each SVG to use a 24x24 viewBox.
-- Remap/translate path coordinates so the icon is properly centered in its viewBox.
-- Ensure stroke-based designs use consistent stroke-width.
-- No embedded raster images, no external references, no inline styles.
-- Use currentColor for fills/strokes so icons adapt to their context.
-
-OUTPUT FORMAT:
-Return exactly 9 SVG blocks, one per icon, in the same order they were provided.
-No explanation, no markdown fences, no surrounding text.
-Separate each SVG with a single blank line.
-"""
-
 SYSTEM_PROMPT = """\
 You are an expert SVG icon designer specializing in creating cohesive icon sets for websites and applications.
 
