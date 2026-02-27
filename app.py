@@ -46,6 +46,12 @@ THINKING_MODELS = {
 }
 
 
+def is_svg_empty(svg_string):
+    """Return True if the SVG has no meaningful path data (all <path d=""> are empty)."""
+    paths = re.findall(r'd="([^"]*)"', svg_string)
+    return not paths or all(not d.strip() for d in paths)
+
+
 def trace_image_to_svg(png_bytes, name=None):
     """Convert PNG bytes to a clean, minimal SVG optimized for flat monochrome icons."""
     SCALE = 3
@@ -262,13 +268,17 @@ def pipeline_trace():
     try:
         start = time.time()
         svgs = []
+        kept_names = []
         for i, icon_data in enumerate(icons):
             _header, b64 = icon_data.split(",", 1)
             raw_bytes = base64.b64decode(b64)
             name = names[i] if i < len(names) else None
-            svgs.append(trace_image_to_svg(raw_bytes, name=name))
+            svg = trace_image_to_svg(raw_bytes, name=name)
+            if not is_svg_empty(svg):
+                svgs.append(svg)
+                kept_names.append(name or "")
         elapsed = round(time.time() - start, 2)
-        return jsonify({"svgs": svgs, "elapsed": elapsed})
+        return jsonify({"svgs": svgs, "names": kept_names, "elapsed": elapsed})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 502

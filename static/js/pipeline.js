@@ -48,6 +48,7 @@ const briefOutput = document.getElementById('briefOutput');
 const briefStatus = document.getElementById('briefStatus');
 const briefSend = document.getElementById('briefSend');
 const briefModel = document.getElementById('briefModel');
+const briefStyle = document.getElementById('briefStyle');
 const briefForward = document.getElementById('briefForward');
 const briefTimer = createTimer(briefStatus);
 let briefCtrl = null;
@@ -57,7 +58,22 @@ briefPrompt.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runBrief(); }
 });
 
+const STYLE_PREFIX = 'Icon style family should be: ';
+const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$');
+
+briefStyle.addEventListener('change', () => {
+  const newLine = '\n' + STYLE_PREFIX + briefStyle.value;
+  if (styleRegex.test(briefPrompt.value)) {
+    briefPrompt.value = briefPrompt.value.replace(styleRegex, newLine);
+  } else if (briefPrompt.value.trim()) {
+    briefPrompt.value += newLine;
+  }
+});
+
 async function runBrief() {
+  if (!styleRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
+    briefPrompt.value += '\n' + STYLE_PREFIX + briefStyle.value;
+  }
   const prompt = briefPrompt.value.trim();
   if (!prompt) return;
   if (briefCtrl) briefCtrl.abort();
@@ -300,7 +316,7 @@ async function runTrace() {
   tracedSvgs = [];
 
   traceOutput.className = 'output-card visible';
-  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing 9 icons...</div>';
+  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing ' + croppedIcons.length + ' icons...</div>';
   traceGrid.style.display = 'none';
   traceGrid.innerHTML = '';
   traceActions.style.display = 'none';
@@ -319,6 +335,7 @@ async function runTrace() {
 
     traceTimer.stop();
     tracedSvgs = data.svgs;
+    if (data.names) iconNames = data.names;
 
     traceOutput.className = 'output-card';
     traceOutput.innerHTML = '';
@@ -383,7 +400,7 @@ async function runTrace() {
     traceActions.style.display = 'flex';
     toolbox.classList.add('visible');
 
-    traceStatus.innerHTML = 'Traced in <span class="timer">' + data.elapsed + 's</span>';
+    traceStatus.innerHTML = data.svgs.length + ' icons traced in <span class="timer">' + data.elapsed + 's</span>';
   } catch (e) {
     traceTimer.stop();
     traceOutput.className = 'output-card visible error';
@@ -391,3 +408,52 @@ async function runTrace() {
     traceStatus.textContent = '';
   }
 }
+
+// ═══════════════════════════════════
+// Mockup Modal
+// ═══════════════════════════════════
+const mockupOverlay = document.getElementById('mockupOverlay');
+
+function openMockup() {
+  if (!tracedSvgs.length) return;
+
+  // Nav icons — first 3 SVGs
+  for (let i = 0; i < 3; i++) {
+    const el = document.getElementById('mockupNavIcon' + i);
+    if (el) el.innerHTML = tracedSvgs[i] || '';
+  }
+
+  // Feature cards — show only non-empty icons
+  for (let i = 0; i < 9; i++) {
+    const card = document.getElementById('mockupFeature' + i);
+    if (!card) continue;
+    if (i < tracedSvgs.length) {
+      card.style.display = '';
+      card.innerHTML =
+        '<div class="mockup-feature-icon">' + tracedSvgs[i] + '</div>' +
+        '<div class="mockup-feature-label">' + (iconNames[i] || 'Feature') + '</div>' +
+        '<div class="mockup-feature-desc"></div>' +
+        '<div class="mockup-feature-desc2"></div>';
+    } else {
+      card.style.display = 'none';
+    }
+  }
+
+  mockupOverlay.classList.add('visible');
+}
+
+function closeMockup() {
+  mockupOverlay.classList.remove('visible');
+}
+
+let mockupDark = false;
+function toggleMockupDark() {
+  mockupDark = !mockupDark;
+  document.querySelector('.mockup-page').classList.toggle('mockup-dark', mockupDark);
+  document.getElementById('mockupDarkBtn').classList.toggle('active', mockupDark);
+  document.getElementById('mockupDarkBtn').innerHTML = mockupDark ? '&#9788;' : '&#9790;';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mockupOverlay.classList.contains('visible')) closeMockup();
+});
