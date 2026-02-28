@@ -15,7 +15,7 @@ function toggleMode() {
 sizeSlider.addEventListener('input', () => {
   const pct = sizeSlider.value;
   sizeValueEl.textContent = pct + '%';
-  document.querySelectorAll('.svg-preview svg').forEach(s => { s.style.width = pct + '%'; });
+  document.querySelectorAll('.svg-preview svg').forEach(s => { s.style.width = pct + '%'; s.style.maxWidth = pct + '%'; });
 });
 
 // ── Timer helper ──
@@ -39,7 +39,47 @@ let generatedImages = [];
 let croppedIcons = [];
 let tracedSvgs = [];
 let iconNames = [];
+let isColorTrace = false;
 let parsedSpec = null;
+
+// ── VTracer tuning panel ──
+const vtracerTuning = document.getElementById('vtracerTuning');
+const tracerModeSelect = document.getElementById('tracerMode');
+const vtSliders = {
+  filter_speckle: { slider: document.getElementById('sliderSpeckle'), label: document.getElementById('valSpeckle') },
+  color_precision: { slider: document.getElementById('sliderColorPrec'), label: document.getElementById('valColorPrec') },
+  layer_difference: { slider: document.getElementById('sliderLayerDiff'), label: document.getElementById('valLayerDiff') },
+  corner_threshold: { slider: document.getElementById('sliderCorner'), label: document.getElementById('valCorner') },
+  length_threshold: { slider: document.getElementById('sliderLength'), label: document.getElementById('valLength') },
+  splice_threshold: { slider: document.getElementById('sliderSplice'), label: document.getElementById('valSplice') },
+  max_iterations: { slider: document.getElementById('sliderMaxIter'), label: document.getElementById('valMaxIter') },
+  path_precision: { slider: document.getElementById('sliderPathPrec'), label: document.getElementById('valPathPrec') },
+};
+const vtModeSelect = document.getElementById('selectMode');
+const vtHierarchicalSelect = document.getElementById('selectHierarchical');
+
+Object.values(vtSliders).forEach(({ slider, label }) => {
+  slider.addEventListener('input', () => { label.textContent = slider.value; });
+});
+
+tracerModeSelect.addEventListener('change', () => {
+  vtracerTuning.style.display = tracerModeSelect.value === 'vtracer' ? 'grid' : 'none';
+});
+
+function getVtracerParams() {
+  return {
+    filter_speckle: Number(vtSliders.filter_speckle.slider.value),
+    color_precision: Number(vtSliders.color_precision.slider.value),
+    layer_difference: Number(vtSliders.layer_difference.slider.value),
+    corner_threshold: Number(vtSliders.corner_threshold.slider.value),
+    length_threshold: Number(vtSliders.length_threshold.slider.value),
+    splice_threshold: Number(vtSliders.splice_threshold.slider.value),
+    max_iterations: Number(vtSliders.max_iterations.slider.value),
+    path_precision: Number(vtSliders.path_precision.slider.value),
+    mode: vtModeSelect.value,
+    hierarchical: vtHierarchicalSelect.value,
+  };
+}
 
 function chunkArray(arr, size) {
   const chunks = [];
@@ -66,10 +106,35 @@ briefPrompt.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runBrief(); }
 });
 
+document.querySelectorAll('.quick-prompt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    briefPrompt.value = btn.dataset.prompt;
+    briefPrompt.focus();
+  });
+});
+
+const briefColorMode = document.getElementById('briefColorMode');
+
 const STYLE_PREFIX = 'Icon style family should be: ';
-const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$');
+const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$', 'm');
 const COUNT_PREFIX = 'Number of icons: ';
-const countRegex = new RegExp('\\n?' + COUNT_PREFIX + '\\d+');
+const countRegex = new RegExp('\\n?' + COUNT_PREFIX + '\\d+.*$', 'm');
+const COLOR_PREFIX = 'Icon color mode: ';
+const colorRegex = new RegExp('\\n?' + COLOR_PREFIX + '.*$', 'm');
+
+const COLOR_LABELS = {
+  'bw': 'black & white only',
+  'grayscale': 'grayscale (shades of gray)',
+  'monochrome': 'monochrome single hue (e.g. all blue or all teal)',
+  'duotone': 'duotone (two contrasting colors)',
+  'pastel': 'pastel soft colors',
+  'vibrant': 'vibrant colorful',
+  'gradient': 'gradient fills',
+  'neon-colors': 'neon bright glowing colors',
+  'earth-tones': 'earth tones (warm browns, greens, tans)',
+};
+
+function isBlackAndWhite() { return briefColorMode.value === 'bw'; }
 
 function updatePromptLine(prefix, regex, value) {
   const newLine = '\n' + prefix + value;
@@ -90,12 +155,26 @@ briefIconCount.addEventListener('change', () => {
   updatePromptLine(COUNT_PREFIX, countRegex, v);
 });
 
+briefColorMode.addEventListener('change', () => {
+  updatePromptLine(COLOR_PREFIX, colorRegex, COLOR_LABELS[briefColorMode.value] || briefColorMode.value);
+  const tracerMode = document.getElementById('tracerMode');
+  if (isBlackAndWhite()) {
+    tracerMode.value = 'potrace';
+  } else {
+    tracerMode.value = 'vtracer';
+  }
+  tracerMode.dispatchEvent(new Event('change'));
+});
+
 async function runBrief() {
   if (!styleRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + STYLE_PREFIX + briefStyle.value;
   }
   if (!countRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + COUNT_PREFIX + briefIconCount.value;
+  }
+  if (!colorRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
+    briefPrompt.value += '\n' + COLOR_PREFIX + (COLOR_LABELS[briefColorMode.value] || briefColorMode.value);
   }
   const prompt = briefPrompt.value.trim();
   if (!prompt) return;
@@ -225,9 +304,10 @@ async function runImageGen() {
         const specWithBatch = Object.assign({}, parsedSpec, { icons: batches[b] });
         batchPayload = JSON.stringify(specWithBatch, null, 2);
       }
+      const imgPromptBase = isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW : IMAGE_GEN_PROMPT_COLOR;
       const batchPrompt = batchPayload
-        ? IMAGE_GEN_PROMPT + batchPayload + IMAGE_GEN_SUFFIX
-        : IMAGE_GEN_PROMPT + brief + IMAGE_GEN_SUFFIX;
+        ? imgPromptBase + batchPayload + IMAGE_GEN_SUFFIX
+        : imgPromptBase + brief + IMAGE_GEN_SUFFIX;
 
       const reqBody = { prompt: batchPrompt, model: imageGenModel.value };
       if (b > 0 && generatedImages.length > 0) {
@@ -371,8 +451,11 @@ async function runTrace() {
   if (!croppedIcons.length) return;
   tracedSvgs = [];
 
+  const tracerMode = document.getElementById('tracerMode');
+  isColorTrace = tracerMode.value === 'vtracer';
+
   traceOutput.className = 'output-card visible';
-  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing ' + croppedIcons.length + ' icons...</div>';
+  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing ' + croppedIcons.length + ' icons (' + tracerMode.value + ')...</div>';
   traceGrid.style.display = 'none';
   traceGrid.innerHTML = '';
   traceActions.style.display = 'none';
@@ -384,7 +467,10 @@ async function runTrace() {
     const res = await fetch('/api/pipeline/trace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ icons: croppedIcons, names: iconNames }),
+      body: JSON.stringify(Object.assign(
+        { icons: croppedIcons, names: iconNames, tracer: tracerMode.value },
+        tracerMode.value === 'vtracer' ? { vtracer_params: getVtracerParams() } : {}
+      )),
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
@@ -414,9 +500,17 @@ async function runTrace() {
       const preview = document.createElement('div');
       preview.className = 'trace-row-svg svg-preview';
       if (lightMode) preview.classList.add('light');
+      if (isColorTrace) preview.classList.add('color-svg');
       preview.innerHTML = svg;
       const svgEl = preview.querySelector('svg');
-      if (svgEl) svgEl.style.width = sizeSlider.value + '%';
+      if (svgEl) {
+        if (!svgEl.getAttribute('viewBox') && svgEl.getAttribute('width') && svgEl.getAttribute('height')) {
+          svgEl.setAttribute('viewBox', '0 0 ' + svgEl.getAttribute('width') + ' ' + svgEl.getAttribute('height'));
+        }
+        svgEl.removeAttribute('width');
+        svgEl.removeAttribute('height');
+        svgEl.style.width = sizeSlider.value + '%';
+      }
 
       top.appendChild(ref);
       top.appendChild(preview);
@@ -475,10 +569,24 @@ const mockupOverlay = document.getElementById('mockupOverlay');
 function openMockup() {
   if (!tracedSvgs.length) return;
 
+  function fixSvgViewBox(container) {
+    const s = container.querySelector('svg');
+    if (!s) return;
+    if (!s.getAttribute('viewBox') && s.getAttribute('width') && s.getAttribute('height')) {
+      s.setAttribute('viewBox', '0 0 ' + s.getAttribute('width') + ' ' + s.getAttribute('height'));
+    }
+    s.removeAttribute('width');
+    s.removeAttribute('height');
+  }
+
   // Nav icons — first 3 SVGs
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById('mockupNavIcon' + i);
-    if (el) el.innerHTML = tracedSvgs[i] || '';
+    if (el) {
+      el.innerHTML = tracedSvgs[i] || '';
+      el.classList.toggle('color-svg', isColorTrace);
+      fixSvgViewBox(el);
+    }
   }
 
   // Feature cards — dynamically generated from all traced SVGs
@@ -490,11 +598,13 @@ function openMockup() {
   tracedSvgs.forEach((svg, i) => {
     const card = document.createElement('div');
     card.className = 'mockup-feature';
+    const colorClass = isColorTrace ? ' color-svg' : '';
     card.innerHTML =
-      '<div class="mockup-feature-icon">' + svg + '</div>' +
+      '<div class="mockup-feature-icon' + colorClass + '">' + svg + '</div>' +
       '<div class="mockup-feature-label">' + (iconNames[i] || 'Feature') + '</div>' +
       '<div class="mockup-feature-desc"></div>' +
       '<div class="mockup-feature-desc2"></div>';
+    fixSvgViewBox(card.querySelector('.mockup-feature-icon'));
     featuresContainer.appendChild(card);
   });
 

@@ -6,7 +6,7 @@
 
 # """
 
-IMAGE_GEN_PROMPT = """\
+IMAGE_GEN_PROMPT_BW = """\
 Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
 The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
 Place a simple, clean, black icon in each cell that has a description below. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
@@ -18,6 +18,21 @@ CRITICAL NON-NEGOTIABLE RULES:
 The icons should represent:
 
 """
+
+IMAGE_GEN_PROMPT_COLOR = """\
+Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
+The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
+Place a clean icon in each cell using the color scheme specified below. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
+
+CRITICAL NON-NEGOTIABLE RULES: 
+- Do NOT render ANY text, letters, words, labels, titles, captions, or descriptions anywhere in the image. The image must contain ONLY the icon drawings and empty cells — nothing else. Ignore any names below — they are just for your understanding of what to draw, NOT to be written in the image.
+- Do NOT draw any grid lines, borders, gutters, or separators between cells — the grid should be invisible, with icons placed in their positions on a seamless white background. This is important because the image will be programmatically cropped into 9 equal parts, and any visible grid lines would become unwanted artifacts in the individual icon images.
+
+The icons should represent:
+
+"""
+
+IMAGE_GEN_PROMPT = IMAGE_GEN_PROMPT_BW
 
 IMAGE_GEN_SUFFIX = """
 [admin]
