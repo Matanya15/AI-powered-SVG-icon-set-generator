@@ -59,13 +59,13 @@ Return a JSON object with this exact structure:
     "colors": "monochrome, works on light/dark backgrounds"
   },
   "icons": [
-    { "name": "batteryFull", "description": "Full battery, simple rectangular outline with positive terminal" },
-    { "name": "chargingStation", "description": "Minimal outline of a charging station with cable" }
+    { "name": "Battery Full", "description": "Full battery, simple rectangular outline with positive terminal" },
+    { "name": "Charging Station", "description": "Minimal outline of a charging station with cable" }
   ]
 }
 
 Rules:
-- "name" must be camelCase (no spaces, no special characters)
+- "name" must be human-readable Title Case with spaces (e.g. "Shopping Cart", "Heart Rate", "Bar Chart")
 - "description" is a short visual description of what to draw — describe the shapes, not abstract concepts
 - Return the appropriate number of icons (4 to 27)
 - Return ONLY valid JSON, nothing else

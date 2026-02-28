@@ -101,6 +101,7 @@ const briefForward = document.getElementById('briefForward');
 const briefTimer = createTimer(briefStatus);
 let briefCtrl = null;
 let briefText = '';
+let pipelineStartTime = null;
 
 briefPrompt.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runBrief(); }
@@ -167,6 +168,7 @@ briefColorMode.addEventListener('change', () => {
 });
 
 async function runBrief() {
+  pipelineStartTime = Date.now();
   if (!styleRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + STYLE_PREFIX + briefStyle.value;
   }
@@ -552,7 +554,12 @@ async function runTrace() {
     traceActions.style.display = 'flex';
     toolbox.classList.add('visible');
 
-    traceStatus.innerHTML = data.svgs.length + ' icons traced in <span class="timer">' + data.elapsed + 's</span>';
+    let statusMsg = data.svgs.length + ' icons traced in <span class="timer">' + data.elapsed + 's</span>';
+    if (pipelineStartTime) {
+      const totalSec = ((Date.now() - pipelineStartTime) / 1000).toFixed(1);
+      statusMsg += ' &mdash; total pipeline: <span class="timer">' + totalSec + 's</span>';
+    }
+    traceStatus.innerHTML = statusMsg;
   } catch (e) {
     traceTimer.stop();
     traceOutput.className = 'output-card visible error';

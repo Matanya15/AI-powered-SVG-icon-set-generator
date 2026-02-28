@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Icon Generator</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/generate.css') }}">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ═══ Header ═══ -->
+  <header class="header">
+    <h1><span class="logo-icon">&#9670;</span> Icon Generator</h1>
+    <nav class="header-links">
+      <a href="/pipeline">Pipeline</a>
+      <a href="/studio">Studio</a>
+    </nav>
+  </header>
+
+  <!-- ═══ Input Section ═══ -->
+  <section class="input-section">
+    <div class="input-card">
+      <div class="quick-prompts">
+        <button class="quick-chip" data-prompt="Icons for an e-commerce app: cart, wishlist, payment, shipping, returns, reviews, search, profile, orders">E-commerce</button>
+        <button class="quick-chip" data-prompt="Icons for a fitness & health dashboard: heart rate, steps, calories, sleep, hydration, workout, timer, trophy, nutrition">Fitness</button>
+        <button class="quick-chip" data-prompt="Icons for a SaaS analytics platform: dashboard, bar chart, funnel, users, growth, settings, notifications, reports, integrations">Analytics</button>
+        <button class="quick-chip" data-prompt="Icons for a travel booking app: flight, hotel, luggage, map pin, calendar, passport, taxi, restaurant, camera">Travel</button>
+        <button class="quick-chip" data-prompt="Icons for a music streaming service: play, headphones, playlist, equalizer, microphone, vinyl, shuffle, repeat, speaker">Music</button>
+        <button class="quick-chip" data-prompt="Icons for a social media app: like, comment, share, bookmark, camera, story, message, notification, profile">Social</button>
+        <button class="quick-chip" data-prompt="Icons for an education platform: book, graduation cap, video lesson, quiz, certificate, calendar, notes, pencil, backpack">Education</button>
+        <button class="quick-chip" data-prompt="Icons for a food delivery app: burger, pizza, sushi, coffee, delivery, timer, wallet, location, star rating">Food</button>
+      </div>
+      <textarea id="prompt" placeholder="Describe the icons you need...&#10;&#10;e.g. Icons for a travel booking app: flights, hotels, luggage, map, calendar, passport" autofocus></textarea>
+
+      <div class="settings-row">
+        <!-- Custom Style Dropdown -->
+        <div class="style-dropdown" id="styleDropdown">
+          <button class="style-trigger" id="styleTrigger" type="button">
+            <span class="style-thumb"></span>
+            <span class="style-label">Outline</span>
+            <svg class="style-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="style-panel" id="stylePanel">
+            <div class="style-option selected" data-value="outline"><span class="style-thumb"></span><span>Outline</span></div>
+            <div class="style-option" data-value="solid"><span class="style-thumb"></span><span>Solid / Filled</span></div>
+            <div class="style-option" data-value="filled-outline"><span class="style-thumb"></span><span>Filled + Outline</span></div>
+            <div class="style-option" data-value="linear"><span class="style-thumb"></span><span>Linear</span></div>
+            <div class="style-option" data-value="flat"><span class="style-thumb"></span><span>Flat</span></div>
+            <div class="style-option" data-value="glyph"><span class="style-thumb"></span><span>Glyph</span></div>
+            <div class="style-option" data-value="hand-drawn"><span class="style-thumb"></span><span>Hand-drawn</span></div>
+            <div class="style-option" data-value="rounded"><span class="style-thumb"></span><span>Rounded / Friendly</span></div>
+            <div class="style-option" data-value="sharp"><span class="style-thumb"></span><span>Sharp / Angular</span></div>
+            <div class="style-option" data-value="thin-line"><span class="style-thumb"></span><span>Thin Line</span></div>
+            <div class="style-option" data-value="bold-line"><span class="style-thumb"></span><span>Bold Line</span></div>
+            <div class="style-option" data-value="halftone"><span class="style-thumb"></span><span>Halftone / Stipple</span></div>
+            <div class="style-option" data-value="illustrative"><span class="style-thumb"></span><span>Illustrative</span></div>
+            <div class="style-option" data-value="8-bit"><span class="style-thumb"></span><span>Pixelated / 8-bit</span></div>
+            <div class="style-option" data-value="isometric"><span class="style-thumb"></span><span>Isometric</span></div>
+            <div class="style-option" data-value="voxel"><span class="style-thumb"></span><span>Voxel</span></div>
+            <div class="style-option" data-value="low-poly"><span class="style-thumb"></span><span>Low-poly</span></div>
+            <div class="style-option" data-value="retro"><span class="style-thumb"></span><span>Retro</span></div>
+            <div class="style-option" data-value="sticker"><span class="style-thumb"></span><span>Sticker</span></div>
+          </div>
+        </div>
+
+        <select id="colorMode">
+          <option value="bw" selected>Black &amp; White</option>
+          <option value="grayscale">Grayscale</option>
+          <option value="monochrome">Monochrome</option>
+          <option value="duotone">Duotone</option>
+          <option value="pastel">Pastel</option>
+          <option value="vibrant">Vibrant</option>
+          <option value="gradient">Gradient</option>
+          <option value="neon-colors">Neon</option>
+          <option value="earth-tones">Earth Tones</option>
+        </select>
+
+        <label class="count-label">
+          Icons
+          <input id="iconCount" type="number" min="4" max="27" value="9" class="count-input">
+        </label>
+      </div>
+
+      <button id="generateBtn" class="generate-btn" onclick="startGeneration()">
+        <span id="generateLabel">Generate Icons</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ═══ Progress Log ═══ -->
+  <section id="progressSection" class="progress-section hidden">
+    <div id="progressLog" class="progress-log"></div>
+  </section>
+
+  <!-- ═══ Results ═══ -->
+  <section id="resultsSection" class="results-section hidden">
+    <div class="results-header">
+      <h2 id="resultsTitle">Your Icons</h2>
+      <div class="results-actions">
+        <button class="action-btn" onclick="copyAllSvgs()" title="Copy all SVG code">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy All SVGs
+        </button>
+        <button class="action-btn" onclick="downloadAllSvgs()" title="Download all SVGs as .zip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          SVGs (.zip)
+        </button>
+        <button class="action-btn" onclick="downloadAllPngs()" title="Download all as PNG .zip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          PNGs (.zip)
+        </button>
+      </div>
+    </div>
+
+    <div id="resultsGrid" class="results-grid"></div>
+
+    <!-- Toolbox -->
+    <div id="toolbox" class="toolbox">
+      <div class="toolbox-group">
+        <label>Mode</label>
+        <button id="modeBtn" class="toolbox-btn" onclick="toggleMode()">&#9788; Light</button>
+      </div>
+      <div class="toolbox-divider"></div>
+      <div class="toolbox-group">
+        <label>Size</label>
+        <input id="sizeSlider" type="range" class="size-slider" min="10" max="100" value="100">
+        <span id="sizeValue" class="size-value">100%</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const IMAGE_GEN_PROMPT_BW = {{ image_gen_prompt_bw | tojson }};
+  const IMAGE_GEN_PROMPT_COLOR = {{ image_gen_prompt_color | tojson }};
+  const IMAGE_GEN_SUFFIX = {{ image_gen_suffix | tojson }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+<script src="{{ url_for('static', filename='js/generate.js') }}"></script>
+</body>
+</html>

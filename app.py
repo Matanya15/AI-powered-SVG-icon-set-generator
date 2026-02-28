@@ -153,9 +153,36 @@ sys.stdout.write(svg)
         if wm and hm:
             svg = svg.replace('<svg ', f'<svg viewBox="0 0 {wm.group(1)} {hm.group(1)}" ', 1)
 
+    svg = _remove_background_paths(svg)
+
     if name:
         svg = svg.replace('<svg ', f'<svg data-icon="{name}" ', 1)
     return svg.strip()
+
+
+def _normalize_color(color_str):
+    """Normalize a CSS color string to uppercase 6-digit hex for comparison."""
+    c = color_str.strip().upper()
+    if c.startswith('#') and len(c) == 4:
+        c = '#' + c[1]*2 + c[2]*2 + c[3]*2
+    return c
+
+
+def _remove_background_paths(svg):
+    """Detect the background fill from the first <path> and remove all paths
+    sharing that color, making the SVG background transparent."""
+    first = re.search(r'<path\b[^>]*?fill="([^"]+)"', svg)
+    if not first:
+        return svg
+    bg_color = _normalize_color(first.group(1))
+
+    def _replace_path(m):
+        fill_match = re.search(r'fill="([^"]+)"', m.group(0))
+        if fill_match and _normalize_color(fill_match.group(1)) == bg_color:
+            return ''
+        return m.group(0)
+
+    return re.sub(r'<path\b[^>]*/>', _replace_path, svg)
 
 
 def build_config(mode, model):
@@ -170,7 +197,17 @@ def build_config(mode, model):
 
 
 @app.route("/")
-def index():
+def generate_page():
+    return render_template(
+        "generate.html",
+        image_gen_prompt_bw=IMAGE_GEN_PROMPT_BW,
+        image_gen_prompt_color=IMAGE_GEN_PROMPT_COLOR,
+        image_gen_suffix=IMAGE_GEN_SUFFIX,
+    )
+
+
+@app.route("/studio")
+def studio():
     return render_template("index.html")
 
 
@@ -231,8 +268,6 @@ def pipeline_brief():
         "system_instruction": SPEC_PROMPT,
         "response_mime_type": "application/json",
     }
-    if model in THINKING_MODELS:
-        kwargs["thinking_config"] = types.ThinkingConfig(thinking_level="low")
     config = types.GenerateContentConfig(**kwargs)
 
     try:
