@@ -32,7 +32,7 @@ You are an expert icon design consultant. Create an icon set specification based
 Analyze the input:
 - Extract info about the business, audience, products, services, or features.
 - If no icon style is mentioned, suggest a sensible default.
-- If no icon list is provided, generate a relevant set of 9 icons.
+- If no icon list is provided, generate a relevant set of icons (minimum 4, maximum 27).
 
 Return a JSON object with this exact structure:
 
@@ -52,7 +52,7 @@ Return a JSON object with this exact structure:
 Rules:
 - "name" must be camelCase (no spaces, no special characters)
 - "description" is a short visual description of what to draw — describe the shapes, not abstract concepts
-- Return exactly 9 icons in the "icons" array
+- Return the appropriate number of icons (4 to 27)
 - Return ONLY valid JSON, nothing else
 """
 

@@ -20,25 +20,32 @@ sizeSlider.addEventListener('input', () => {
 
 // ── Timer helper ──
 function createTimer(el) {
-  let iv = null;
+  let iv = null, t0 = 0;
   return {
     start() {
-      const t0 = Date.now();
+      t0 = Date.now();
       clearInterval(iv);
       iv = setInterval(() => {
         el.innerHTML = '<span class="timer">' + ((Date.now()-t0)/1000).toFixed(1) + 's</span> waiting...';
       }, 100);
     },
-    stop() { clearInterval(iv); iv = null; }
+    stop() { clearInterval(iv); iv = null; },
+    elapsed() { return ((Date.now()-t0)/1000).toFixed(1); }
   };
 }
 
 // ── Shared state ──
-let generatedImageData = null;
+let generatedImages = [];
 let croppedIcons = [];
 let tracedSvgs = [];
 let iconNames = [];
 let parsedSpec = null;
+
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
 
 // ═══════════════════════════════════
 // STEP 1 — Generate Brief
@@ -49,6 +56,7 @@ const briefStatus = document.getElementById('briefStatus');
 const briefSend = document.getElementById('briefSend');
 const briefModel = document.getElementById('briefModel');
 const briefStyle = document.getElementById('briefStyle');
+const briefIconCount = document.getElementById('briefIconCount');
 const briefForward = document.getElementById('briefForward');
 const briefTimer = createTimer(briefStatus);
 let briefCtrl = null;
@@ -60,19 +68,34 @@ briefPrompt.addEventListener('keydown', e => {
 
 const STYLE_PREFIX = 'Icon style family should be: ';
 const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$');
+const COUNT_PREFIX = 'Number of icons: ';
+const countRegex = new RegExp('\\n?' + COUNT_PREFIX + '\\d+');
 
-briefStyle.addEventListener('change', () => {
-  const newLine = '\n' + STYLE_PREFIX + briefStyle.value;
-  if (styleRegex.test(briefPrompt.value)) {
-    briefPrompt.value = briefPrompt.value.replace(styleRegex, newLine);
+function updatePromptLine(prefix, regex, value) {
+  const newLine = '\n' + prefix + value;
+  if (regex.test(briefPrompt.value)) {
+    briefPrompt.value = briefPrompt.value.replace(regex, newLine);
   } else if (briefPrompt.value.trim()) {
     briefPrompt.value += newLine;
   }
+}
+
+briefStyle.addEventListener('change', () => {
+  updatePromptLine(STYLE_PREFIX, styleRegex, briefStyle.value);
+});
+
+briefIconCount.addEventListener('change', () => {
+  const v = Math.max(4, Math.min(27, parseInt(briefIconCount.value) || 9));
+  briefIconCount.value = v;
+  updatePromptLine(COUNT_PREFIX, countRegex, v);
 });
 
 async function runBrief() {
   if (!styleRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + STYLE_PREFIX + briefStyle.value;
+  }
+  if (!countRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
+    briefPrompt.value += '\n' + COUNT_PREFIX + briefIconCount.value;
   }
   const prompt = briefPrompt.value.trim();
   if (!prompt) return;
@@ -171,45 +194,75 @@ async function runImageGen() {
   if (imageGenCtrl) imageGenCtrl.abort();
   imageGenCtrl = new AbortController();
 
-  const prompt = IMAGE_GEN_PROMPT + brief + IMAGE_GEN_SUFFIX;
+  // Determine batches: chunk parsedSpec.icons into groups of 9, or fall back to a single batch
+  let batches;
+  if (parsedSpec && parsedSpec.icons && parsedSpec.icons.length > 0) {
+    batches = chunkArray(parsedSpec.icons, 9);
+  } else {
+    batches = [null]; // single batch using the raw brief text
+  }
+
+  const totalBatches = batches.length;
+  generatedImages = [];
 
   imageGenSend.disabled = true;
   imageGenSend.textContent = 'Generating...';
   imageGenImageOutput.className = 'image-output';
   imageGenImageOutput.innerHTML = '';
   imageGenOutput.className = 'output-card visible';
-  imageGenOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Generating image...</div>';
   imageGenForward.style.display = 'none';
   imageGenTimer.start();
 
   try {
-    const res = await fetch('/api/pipeline/generate-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: imageGenModel.value }),
-      signal: imageGenCtrl.signal,
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
+    for (let b = 0; b < totalBatches; b++) {
+      const label = totalBatches > 1
+        ? 'Generating grid ' + (b + 1) + ' of ' + totalBatches + '...'
+        : 'Generating image...';
+      imageGenOutput.innerHTML = '<div class="loading"><div class="spinner"></div>' + label + '</div>';
+
+      let batchPayload;
+      if (batches[b]) {
+        const specWithBatch = Object.assign({}, parsedSpec, { icons: batches[b] });
+        batchPayload = JSON.stringify(specWithBatch, null, 2);
+      }
+      const batchPrompt = batchPayload
+        ? IMAGE_GEN_PROMPT + batchPayload + IMAGE_GEN_SUFFIX
+        : IMAGE_GEN_PROMPT + brief + IMAGE_GEN_SUFFIX;
+
+      const reqBody = { prompt: batchPrompt, model: imageGenModel.value };
+      if (b > 0 && generatedImages.length > 0) {
+        reqBody.reference_image = generatedImages[0];
+      }
+
+      const res = await fetch('/api/pipeline/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody),
+        signal: imageGenCtrl.signal,
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
+
+      if (data.image) generatedImages.push(data.image);
+    }
 
     imageGenTimer.stop();
-    generatedImageData = data.image;
 
     imageGenOutput.className = 'output-card';
     imageGenOutput.innerHTML = '';
-    if (data.text) {
-      imageGenOutput.className = 'output-card visible';
-      imageGenOutput.textContent = data.text;
-    }
 
-    const img = document.createElement('img');
-    img.src = data.image;
     imageGenImageOutput.innerHTML = '';
-    imageGenImageOutput.appendChild(img);
+    generatedImages.forEach((src, i) => {
+      const img = document.createElement('img');
+      img.src = src;
+      if (totalBatches > 1) img.title = 'Grid ' + (i + 1) + ' of ' + totalBatches;
+      imageGenImageOutput.appendChild(img);
+    });
     imageGenImageOutput.className = 'image-output visible';
 
     imageGenForward.style.display = 'inline-block';
-    imageGenStatus.innerHTML = 'Completed in <span class="timer">' + data.elapsed + 's</span>';
+    const batchLabel = totalBatches > 1 ? totalBatches + ' grids generated' : 'Completed';
+    imageGenStatus.innerHTML = batchLabel + ' in <span class="timer">' + imageGenTimer.elapsed() + 's</span>';
   } catch (e) {
     if (e.name === 'AbortError') return;
     imageGenTimer.stop();
@@ -233,34 +286,37 @@ const cropForward = document.getElementById('cropForward');
 const cropTimer = createTimer(cropStatus);
 
 async function runCrop() {
-  if (!generatedImageData) return;
+  if (!generatedImages.length) return;
   croppedIcons = [];
   tracedSvgs = [];
 
   cropOutput.className = 'output-card visible';
-  cropOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Cropping icons...</div>';
+  cropOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Cropping ' + generatedImages.length + ' grid(s)...</div>';
   cropGrid.style.display = 'none';
   cropGrid.innerHTML = '';
   cropForward.style.display = 'none';
   cropTimer.start();
 
   try {
-    const res = await fetch('/api/pipeline/crop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_data: generatedImageData }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
+    const results = await Promise.all(generatedImages.map(imgData =>
+      fetch('/api/pipeline/crop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data: imgData }),
+      }).then(r => r.json()).then(d => {
+        if (d.error) throw new Error(d.error);
+        return d.icons;
+      })
+    ));
 
     cropTimer.stop();
-    croppedIcons = data.icons;
+    croppedIcons = results.flat();
 
     cropOutput.className = 'output-card';
     cropOutput.innerHTML = '';
 
     cropGrid.innerHTML = '';
-    data.icons.forEach((src, i) => {
+    croppedIcons.forEach((src, i) => {
       const cell = document.createElement('div');
       cell.className = 'icon-grid-cell';
       cell.innerHTML = '<span class="cell-label">' + (i + 1) + '</span>'
@@ -270,7 +326,7 @@ async function runCrop() {
     cropGrid.style.display = 'grid';
 
     cropForward.style.display = 'inline-block';
-    cropStatus.innerHTML = 'Cropped in <span class="timer">' + data.elapsed + 's</span>';
+    cropStatus.innerHTML = croppedIcons.length + ' cells cropped in <span class="timer">' + cropTimer.elapsed() + 's</span>';
   } catch (e) {
     cropTimer.stop();
     cropOutput.className = 'output-card visible error';
@@ -336,6 +392,7 @@ async function runTrace() {
     traceTimer.stop();
     tracedSvgs = data.svgs;
     if (data.names) iconNames = data.names;
+    const keptIndices = data.indices || data.svgs.map((_, i) => i);
 
     traceOutput.className = 'output-card';
     traceOutput.innerHTML = '';
@@ -351,7 +408,8 @@ async function runTrace() {
 
       const ref = document.createElement('div');
       ref.className = 'trace-row-ref';
-      ref.innerHTML = '<img src="' + croppedIcons[i] + '">';
+      const refIdx = keptIndices[i] !== undefined ? keptIndices[i] : i;
+      ref.innerHTML = '<img src="' + (croppedIcons[refIdx] || '') + '">';
 
       const preview = document.createElement('div');
       preview.className = 'trace-row-svg svg-preview';
@@ -423,20 +481,26 @@ function openMockup() {
     if (el) el.innerHTML = tracedSvgs[i] || '';
   }
 
-  // Feature cards — show only non-empty icons
-  for (let i = 0; i < 9; i++) {
-    const card = document.getElementById('mockupFeature' + i);
-    if (!card) continue;
-    if (i < tracedSvgs.length) {
-      card.style.display = '';
-      card.innerHTML =
-        '<div class="mockup-feature-icon">' + tracedSvgs[i] + '</div>' +
-        '<div class="mockup-feature-label">' + (iconNames[i] || 'Feature') + '</div>' +
-        '<div class="mockup-feature-desc"></div>' +
-        '<div class="mockup-feature-desc2"></div>';
-    } else {
-      card.style.display = 'none';
-    }
+  // Feature cards — dynamically generated from all traced SVGs
+  const featuresContainer = document.querySelector('.mockup-features');
+  featuresContainer.innerHTML = '';
+  const cols = tracedSvgs.length <= 3 ? tracedSvgs.length : tracedSvgs.length <= 4 ? 2 : 3;
+  featuresContainer.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+
+  tracedSvgs.forEach((svg, i) => {
+    const card = document.createElement('div');
+    card.className = 'mockup-feature';
+    card.innerHTML =
+      '<div class="mockup-feature-icon">' + svg + '</div>' +
+      '<div class="mockup-feature-label">' + (iconNames[i] || 'Feature') + '</div>' +
+      '<div class="mockup-feature-desc"></div>' +
+      '<div class="mockup-feature-desc2"></div>';
+    featuresContainer.appendChild(card);
+  });
+
+  // Re-apply dark mode if active
+  if (mockupDark) {
+    document.querySelector('.mockup-page').classList.add('mockup-dark');
   }
 
   mockupOverlay.classList.add('visible');

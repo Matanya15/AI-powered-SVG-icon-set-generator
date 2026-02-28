@@ -47,6 +47,7 @@
           <option value="bold-line">Bold Line</option>
           <option value="halftone">Halftone / Stipple</option>
         </select>
+        <label class="icon-count-label">Icons <input id="briefIconCount" type="number" min="4" max="27" value="9" class="icon-count-input"></label>
       </div>
       <div class="input-area">
         <textarea id="briefPrompt" placeholder="Describe what you need icons for..." autofocus></textarea>
@@ -82,7 +83,7 @@
         </select>
       </div>
       <div class="input-area">
-        <textarea id="imageGenPrompt" placeholder="Paste brief or describe the 9 icons for the 3x3 grid..."></textarea>
+        <textarea id="imageGenPrompt" placeholder="Paste brief JSON or describe the icons to generate..."></textarea>
         <div class="input-footer">
           <button id="imageGenSend" onclick="runImageGen()">Generate Image</button>
         </div>
@@ -187,17 +188,7 @@
           <div class="mockup-p short"></div>
         </div>
       </div>
-      <div class="mockup-features">
-        <div class="mockup-feature" id="mockupFeature0"></div>
-        <div class="mockup-feature" id="mockupFeature1"></div>
-        <div class="mockup-feature" id="mockupFeature2"></div>
-        <div class="mockup-feature" id="mockupFeature3"></div>
-        <div class="mockup-feature" id="mockupFeature4"></div>
-        <div class="mockup-feature" id="mockupFeature5"></div>
-        <div class="mockup-feature" id="mockupFeature6"></div>
-        <div class="mockup-feature" id="mockupFeature7"></div>
-        <div class="mockup-feature" id="mockupFeature8"></div>
-      </div>
+      <div class="mockup-features"></div>
     </div>
   </div>
 </div>

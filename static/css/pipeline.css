@@ -147,6 +147,33 @@ select {
 }
 select:hover, select:focus { border-color: #8b5cf6; }
 
+.icon-count-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #999;
+  white-space: nowrap;
+}
+
+.icon-count-input {
+  width: max-content;
+  max-width: 200px;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 0.8rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+  -moz-appearance: textfield;
+}
+.icon-count-input:hover, .icon-count-input:focus { border-color: #8b5cf6; }
+.icon-count-input::-webkit-inner-spin-button,
+.icon-count-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
 .input-area { position: relative; }
 
 textarea {

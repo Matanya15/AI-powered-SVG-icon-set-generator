@@ -183,6 +183,7 @@ def pipeline_generate_image():
     data = request.json
     prompt = data.get("prompt", "").strip()
     model = data.get("model", IMAGE_MODELS[0])
+    ref_image = data.get("reference_image")
 
     if not prompt:
         return jsonify({"error": "Prompt cannot be empty"}), 400
@@ -192,10 +193,26 @@ def pipeline_generate_image():
         temperature=0,
     )
 
+    contents = []
+    if ref_image:
+        try:
+            header, b64 = ref_image.split(",", 1)
+            mime = header.split(":")[1].split(";")[0] if ":" in header else "image/png"
+            contents.append(
+                "The following image is a previously generated 3x3 icon grid from the same icon set. "
+                "Use it as a STYLE REFERENCE — match the exact same stroke weight, line style, level of detail, "
+                "proportions, and visual language for the new icons below. "
+                "The new icons must look like they belong to the same family as the ones in the reference image."
+            )
+            contents.append(types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime))
+        except Exception:
+            pass
+    contents.append(prompt)
+
     try:
         start = time.time()
         response = client.models.generate_content(
-            model=model, contents=prompt, config=config,
+            model=model, contents=contents, config=config,
         )
         elapsed = round(time.time() - start, 1)
 
@@ -269,6 +286,7 @@ def pipeline_trace():
         start = time.time()
         svgs = []
         kept_names = []
+        kept_indices = []
         for i, icon_data in enumerate(icons):
             _header, b64 = icon_data.split(",", 1)
             raw_bytes = base64.b64decode(b64)
@@ -277,8 +295,9 @@ def pipeline_trace():
             if not is_svg_empty(svg):
                 svgs.append(svg)
                 kept_names.append(name or "")
+                kept_indices.append(i)
         elapsed = round(time.time() - start, 2)
-        return jsonify({"svgs": svgs, "names": kept_names, "elapsed": elapsed})
+        return jsonify({"svgs": svgs, "names": kept_names, "indices": kept_indices, "elapsed": elapsed})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 502
