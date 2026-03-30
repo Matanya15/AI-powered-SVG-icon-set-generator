@@ -8,39 +8,22 @@
 </head>
 <body>
 
-<!-- ═══ Cosmic Background ═══ -->
-<div class="cosmos">
-  <div class="stars"></div>
-  <div class="stars stars--deep"></div>
-  <svg class="float-icon fi-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-  <svg class="float-icon fi-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-  <svg class="float-icon fi-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
-  <svg class="float-icon fi-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
-  <svg class="float-icon fi-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>
-  <svg class="float-icon fi-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-  <svg class="float-icon fi-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-  <svg class="float-icon fi-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg>
-  <svg class="float-icon fi-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-  <svg class="float-icon fi-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-  <svg class="float-icon fi-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-  <svg class="float-icon fi-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-</div>
+<!-- ═══ Left sidebar ═══ -->
+<aside class="sidebar">
 
-<div class="page">
+  <div class="sidebar-brand">
+    <span class="brand-mark">&#10022;</span>
+    <div>
+      <div class="brand-name">Icon Generator</div>
+      <div class="brand-tag">Precision-Crafted SVGs</div>
+    </div>
+  </div>
 
-  <!-- ═══ Header ═══ -->
-  <header class="header">
-    <h1><span class="logo-icon">&#9670;</span> Icon Generator</h1>
-    <nav class="header-links">
-      <a href="/pipeline">Pipeline</a>
-      <a href="/studio">Studio</a>
-    </nav>
-  </header>
+  <div class="sidebar-scroll">
 
-  <!-- ═══ Input Section ═══ -->
-  <section class="input-section">
-    <div class="input-card">
-      <div class="quick-prompts">
+    <div class="sidebar-section">
+      <div class="section-label">Quick Start</div>
+      <div class="quick-prompts" id="quickPrompts">
         <button class="quick-chip" data-prompt="Icons for an e-commerce app: cart, wishlist, payment, shipping, returns, reviews, search, profile, orders">E-commerce</button>
         <button class="quick-chip" data-prompt="Icons for a fitness & health dashboard: heart rate, steps, calories, sleep, hydration, workout, timer, trophy, nutrition">Fitness</button>
         <button class="quick-chip" data-prompt="Icons for a SaaS analytics platform: dashboard, bar chart, funnel, users, growth, settings, notifications, reports, integrations">Analytics</button>
@@ -50,91 +33,136 @@
         <button class="quick-chip" data-prompt="Icons for an education platform: book, graduation cap, video lesson, quiz, certificate, calendar, notes, pencil, backpack">Education</button>
         <button class="quick-chip" data-prompt="Icons for a food delivery app: burger, pizza, sushi, coffee, delivery, timer, wallet, location, star rating">Food</button>
       </div>
-      <textarea id="prompt" placeholder="Describe the icons you need...&#10;&#10;e.g. Icons for a travel booking app: flights, hotels, luggage, map, calendar, passport" autofocus></textarea>
-
-      <div class="settings-row">
-        <!-- Custom Style Dropdown -->
-        <div class="style-dropdown" id="styleDropdown">
-          <button class="style-trigger" id="styleTrigger" type="button">
-            <span class="style-thumb"></span>
-            <span class="style-label">Outline</span>
-            <svg class="style-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-          <div class="style-panel" id="stylePanel">
-            <div class="style-option selected" data-value="outline"><span class="style-thumb"></span><span>Outline</span></div>
-            <div class="style-option" data-value="solid"><span class="style-thumb"></span><span>Solid / Filled</span></div>
-            <div class="style-option" data-value="filled-outline"><span class="style-thumb"></span><span>Filled + Outline</span></div>
-            <div class="style-option" data-value="linear"><span class="style-thumb"></span><span>Linear</span></div>
-            <div class="style-option" data-value="flat"><span class="style-thumb"></span><span>Flat</span></div>
-            <div class="style-option" data-value="glyph"><span class="style-thumb"></span><span>Glyph</span></div>
-            <div class="style-option" data-value="hand-drawn"><span class="style-thumb"></span><span>Hand-drawn</span></div>
-            <div class="style-option" data-value="rounded"><span class="style-thumb"></span><span>Rounded / Friendly</span></div>
-            <div class="style-option" data-value="sharp"><span class="style-thumb"></span><span>Sharp / Angular</span></div>
-            <div class="style-option" data-value="thin-line"><span class="style-thumb"></span><span>Thin Line</span></div>
-            <div class="style-option" data-value="bold-line"><span class="style-thumb"></span><span>Bold Line</span></div>
-            <div class="style-option" data-value="halftone"><span class="style-thumb"></span><span>Halftone / Stipple</span></div>
-            <div class="style-option" data-value="illustrative"><span class="style-thumb"></span><span>Illustrative</span></div>
-            <div class="style-option" data-value="8-bit"><span class="style-thumb"></span><span>Pixelated / 8-bit</span></div>
-            <div class="style-option" data-value="isometric"><span class="style-thumb"></span><span>Isometric</span></div>
-            <div class="style-option" data-value="voxel"><span class="style-thumb"></span><span>Voxel</span></div>
-            <div class="style-option" data-value="low-poly"><span class="style-thumb"></span><span>Low-poly</span></div>
-            <div class="style-option" data-value="retro"><span class="style-thumb"></span><span>Retro</span></div>
-            <div class="style-option" data-value="sticker"><span class="style-thumb"></span><span>Sticker</span></div>
-          </div>
-        </div>
-
-        <select id="colorMode">
-          <option value="bw" selected>Black &amp; White</option>
-          <option value="grayscale">Grayscale</option>
-          <option value="monochrome">Monochrome</option>
-          <option value="duotone">Duotone</option>
-          <option value="pastel">Pastel</option>
-          <option value="vibrant">Vibrant</option>
-          <option value="gradient">Gradient</option>
-          <option value="neon-colors">Neon</option>
-          <option value="earth-tones">Earth Tones</option>
-        </select>
-
-        <label class="count-label">
-          Icons
-          <input id="iconCount" type="number" min="4" max="27" value="9" class="count-input">
-        </label>
-      </div>
-
-      <button id="generateBtn" class="generate-btn" onclick="startGeneration()">
-        <span id="generateLabel">Generate Icons</span>
-      </button>
     </div>
-  </section>
 
-  <!-- ═══ Progress Log ═══ -->
-  <section id="progressSection" class="progress-section hidden">
-    <div id="progressLog" class="progress-log"></div>
-  </section>
+    <div class="sidebar-section">
+      <div class="section-label">Prompt</div>
+      <div class="input-card" id="inputCard">
+        <div class="ref-preview hidden" id="refPreview">
+          <img id="refThumb" src="" alt="Reference">
+          <span class="ref-label">Style reference</span>
+          <button class="ref-remove" id="refRemove" type="button" title="Remove">&times;</button>
+        </div>
+        <div class="input-row">
+          <input type="file" id="refFileInput" accept="image/*" hidden>
+          <button class="attach-btn" id="attachBtn" type="button" title="Add reference image">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          </button>
+          <textarea id="prompt" rows="1" placeholder="Describe the icons you need..." autofocus></textarea>
+          <button id="generateBtn" class="generate-btn" onclick="startGeneration()" title="Generate Icons">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <!-- ═══ Results ═══ -->
+    <div class="sidebar-section">
+      <button class="settings-toggle" id="settingsToggle" type="button">
+        <svg class="settings-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Customize
+        <svg class="settings-toggle-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="settings-drawer" id="settingsDrawer">
+        <div class="settings-row">
+          <div class="style-dropdown" id="styleDropdown">
+            <button class="style-trigger" id="styleTrigger" type="button">
+              <span class="style-thumb"></span>
+              <span class="style-label">Outline</span>
+              <svg class="style-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="style-panel" id="stylePanel">
+              <div class="style-option selected" data-value="outline"><span class="style-thumb"></span><span>Outline</span></div>
+              <div class="style-option" data-value="solid"><span class="style-thumb"></span><span>Solid / Filled</span></div>
+              <div class="style-option" data-value="filled-outline"><span class="style-thumb"></span><span>Filled + Outline</span></div>
+              <div class="style-option" data-value="linear"><span class="style-thumb"></span><span>Linear</span></div>
+              <div class="style-option" data-value="flat"><span class="style-thumb"></span><span>Flat</span></div>
+              <div class="style-option" data-value="glyph"><span class="style-thumb"></span><span>Glyph</span></div>
+              <div class="style-option" data-value="hand-drawn"><span class="style-thumb"></span><span>Hand-drawn</span></div>
+              <div class="style-option" data-value="rounded"><span class="style-thumb"></span><span>Rounded / Friendly</span></div>
+              <div class="style-option" data-value="sharp"><span class="style-thumb"></span><span>Sharp / Angular</span></div>
+              <div class="style-option" data-value="thin-line"><span class="style-thumb"></span><span>Thin Line</span></div>
+              <div class="style-option" data-value="bold-line"><span class="style-thumb"></span><span>Bold Line</span></div>
+              <div class="style-option" data-value="halftone"><span class="style-thumb"></span><span>Halftone / Stipple</span></div>
+              <div class="style-option" data-value="illustrative"><span class="style-thumb"></span><span>Illustrative</span></div>
+              <div class="style-option" data-value="8-bit"><span class="style-thumb"></span><span>Pixelated / 8-bit</span></div>
+              <div class="style-option" data-value="isometric"><span class="style-thumb"></span><span>Isometric</span></div>
+              <div class="style-option" data-value="voxel"><span class="style-thumb"></span><span>Voxel</span></div>
+              <div class="style-option" data-value="low-poly"><span class="style-thumb"></span><span>Low-poly</span></div>
+              <div class="style-option" data-value="retro"><span class="style-thumb"></span><span>Retro</span></div>
+              <div class="style-option" data-value="sticker"><span class="style-thumb"></span><span>Sticker</span></div>
+            </div>
+          </div>
+          <select id="colorMode">
+            <option value="bw" selected>Black &amp; White</option>
+            <option value="grayscale">Grayscale</option>
+            <option value="monochrome">Monochrome</option>
+            <option value="duotone">Duotone</option>
+            <option value="pastel">Pastel</option>
+            <option value="vibrant">Vibrant</option>
+            <option value="gradient">Gradient</option>
+            <option value="neon-colors">Neon</option>
+            <option value="earth-tones">Earth Tones</option>
+          </select>
+          <label class="count-label">
+            Icons
+            <input id="iconCount" type="number" min="4" max="27" value="9" class="count-input">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="progressSection" class="progress-section hidden">
+      <div id="progressLog" class="progress-log"></div>
+    </div>
+
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="/pipeline">Pipeline</a>
+    <span class="nav-dot"></span>
+    <a href="/studio">Studio</a>
+  </nav>
+
+</aside>
+
+<!-- ═══ Main canvas ═══ -->
+<main class="main-area" id="mainArea">
+
+  <!-- Hero / empty state — full-bleed -->
+  <div class="deco-state" id="decoState">
+
+    <!-- Interactive dot field -->
+    <canvas id="dotField"></canvas>
+
+    <!-- Center text overlay -->
+    <div class="deco-text">
+      <h1 class="deco-title">Icons, Forged by AI</h1>
+      <div class="deco-rule"></div>
+      <p class="deco-sub">Describe your vision &mdash; get production&#8209;ready SVG icons in seconds.</p>
+    </div>
+
+  </div>
+
+  <!-- Results state -->
   <section id="resultsSection" class="results-section hidden">
     <div class="results-header">
       <h2 id="resultsTitle">Your Icons</h2>
       <div class="results-actions">
         <button class="action-btn" onclick="copyAllSvgs()" title="Copy all SVG code">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          Copy All SVGs
+          Copy All
         </button>
-        <button class="action-btn" onclick="downloadAllSvgs()" title="Download all SVGs as .zip">
+        <button class="action-btn" onclick="downloadAllSvgs()" title="Download SVGs">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          SVGs (.zip)
+          SVGs
         </button>
-        <button class="action-btn" onclick="downloadAllPngs()" title="Download all as PNG .zip">
+        <button class="action-btn" onclick="downloadAllPngs()" title="Download PNGs">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          PNGs (.zip)
+          PNGs
         </button>
       </div>
     </div>
-
     <div id="resultsGrid" class="results-grid"></div>
-
-    <!-- Toolbox -->
     <div id="toolbox" class="toolbox">
       <div class="toolbox-group">
         <label>Mode</label>
@@ -149,14 +177,16 @@
     </div>
   </section>
 
-</div>
+</main>
 
 <script>
   const IMAGE_GEN_PROMPT_BW = {{ image_gen_prompt_bw | tojson }};
   const IMAGE_GEN_PROMPT_COLOR = {{ image_gen_prompt_color | tojson }};
+  const IMAGE_GEN_PROMPT_REF = {{ image_gen_prompt_ref | tojson }};
   const IMAGE_GEN_SUFFIX = {{ image_gen_suffix | tojson }};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <script src="{{ url_for('static', filename='js/generate.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dot-field.js') }}"></script>
 </body>
 </html>

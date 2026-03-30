@@ -41,10 +41,113 @@ let tracedSvgs = [];
 let iconNames = [];
 let isColorTrace = false;
 let parsedSpec = null;
+let pipeRefImageData = null;
+
+// ── Reference image ──
+const pipeRefFileInput = document.getElementById('pipeRefFileInput');
+const pipeRefPreview = document.getElementById('pipeRefPreview');
+const pipeRefThumb = document.getElementById('pipeRefThumb');
+const pipeAttachBtn = document.getElementById('pipeAttachBtn');
+
+const imageGenRefBadge = document.getElementById('imageGenRefBadge');
+const imageGenRefThumb = document.getElementById('imageGenRefThumb');
+
+function syncRefBadge() {
+  if (pipeRefImageData) {
+    imageGenRefThumb.src = pipeRefImageData;
+    imageGenRefBadge.classList.remove('hidden');
+  } else {
+    imageGenRefBadge.classList.add('hidden');
+    imageGenRefThumb.src = '';
+  }
+}
+
+function setPipeRef(dataUrl) {
+  pipeRefImageData = dataUrl;
+  pipeRefThumb.src = dataUrl;
+  pipeRefPreview.classList.remove('hidden');
+  pipeAttachBtn.classList.add('has-ref');
+  syncRefBadge();
+}
+
+function clearPipeRef() {
+  pipeRefImageData = null;
+  pipeRefThumb.src = '';
+  pipeRefPreview.classList.add('hidden');
+  pipeAttachBtn.classList.remove('has-ref');
+  syncRefBadge();
+}
+
+function loadPipeRefFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (file.type === 'image/svg+xml') {
+    const reader = new FileReader();
+    reader.onload = () => rasterizePipeSvg(reader.result);
+    reader.readAsDataURL(file);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => setPipeRef(reader.result);
+  reader.readAsDataURL(file);
+}
+
+function rasterizePipeSvg(svgDataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    setPipeRef(canvas.toDataURL('image/png'));
+  };
+  img.src = svgDataUrl;
+}
+
+pipeAttachBtn.addEventListener('click', () => pipeRefFileInput.click());
+pipeRefThumb.addEventListener('click', () => pipeRefFileInput.click());
+
+pipeRefFileInput.addEventListener('change', () => {
+  if (pipeRefFileInput.files[0]) loadPipeRefFile(pipeRefFileInput.files[0]);
+  pipeRefFileInput.value = '';
+});
+
+document.getElementById('pipeRefRemove').addEventListener('click', clearPipeRef);
+document.getElementById('imageGenRefClear').addEventListener('click', clearPipeRef);
+
+// ── Potrace tuning panel ──
+const potraceTuning = document.getElementById('potraceTuning');
+const tracerModeSelect = document.getElementById('tracerMode');
+const ptSliders = {
+  threshold:     { slider: document.getElementById('sliderThreshold'), label: document.getElementById('valThreshold') },
+  turdsize:      { slider: document.getElementById('sliderTurd'),      label: document.getElementById('valTurd') },
+  alphamax:      { slider: document.getElementById('sliderAlpha'),     label: document.getElementById('valAlpha') },
+  opttolerance:  { slider: document.getElementById('sliderOptTol'),    label: document.getElementById('valOptTol') },
+  scale:         { slider: document.getElementById('sliderScale'),     label: document.getElementById('valScale') },
+};
+const ptInvertCheck = document.getElementById('checkInvert');
+
+Object.values(ptSliders).forEach(({ slider, label }) => {
+  slider.addEventListener('input', () => { label.textContent = slider.value; });
+});
+
+function getPotraceParams() {
+  return {
+    threshold:    Number(ptSliders.threshold.slider.value),
+    turdsize:     Number(ptSliders.turdsize.slider.value),
+    alphamax:     Number(ptSliders.alphamax.slider.value),
+    opttolerance: Number(ptSliders.opttolerance.slider.value),
+    scale:        Number(ptSliders.scale.slider.value),
+    invert:       ptInvertCheck.checked,
+  };
+}
 
 // ── VTracer tuning panel ──
 const vtracerTuning = document.getElementById('vtracerTuning');
-const tracerModeSelect = document.getElementById('tracerMode');
 const vtSliders = {
   filter_speckle: { slider: document.getElementById('sliderSpeckle'), label: document.getElementById('valSpeckle') },
   color_precision: { slider: document.getElementById('sliderColorPrec'), label: document.getElementById('valColorPrec') },
@@ -63,7 +166,9 @@ Object.values(vtSliders).forEach(({ slider, label }) => {
 });
 
 tracerModeSelect.addEventListener('change', () => {
-  vtracerTuning.style.display = tracerModeSelect.value === 'vtracer' ? 'grid' : 'none';
+  const isVtracer = tracerModeSelect.value === 'vtracer';
+  vtracerTuning.style.display = isVtracer ? 'grid' : 'none';
+  potraceTuning.style.display = isVtracer ? 'none' : 'grid';
 });
 
 function getVtracerParams() {
@@ -191,10 +296,12 @@ async function runBrief() {
   briefTimer.start();
 
   try {
+    const briefBody = { prompt, model: briefModel.value };
+    if (pipeRefImageData) briefBody.reference_image = pipeRefImageData;
     const res = await fetch('/api/pipeline/brief', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: briefModel.value }),
+      body: JSON.stringify(briefBody),
       signal: briefCtrl.signal,
     });
     const data = await res.json();
@@ -306,13 +413,17 @@ async function runImageGen() {
         const specWithBatch = Object.assign({}, parsedSpec, { icons: batches[b] });
         batchPayload = JSON.stringify(specWithBatch, null, 2);
       }
-      const imgPromptBase = isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW : IMAGE_GEN_PROMPT_COLOR;
+      const imgPromptBase = (b === 0 && pipeRefImageData) ? IMAGE_GEN_PROMPT_REF
+        : isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW : IMAGE_GEN_PROMPT_COLOR;
       const batchPrompt = batchPayload
         ? imgPromptBase + batchPayload + IMAGE_GEN_SUFFIX
         : imgPromptBase + brief + IMAGE_GEN_SUFFIX;
 
       const reqBody = { prompt: batchPrompt, model: imageGenModel.value };
-      if (b > 0 && generatedImages.length > 0) {
+      if (b === 0 && pipeRefImageData) {
+        reqBody.reference_image = pipeRefImageData;
+        reqBody.user_ref = true;
+      } else if (b > 0 && generatedImages.length > 0) {
         reqBody.reference_image = generatedImages[0];
       }
 
@@ -471,7 +582,7 @@ async function runTrace() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign(
         { icons: croppedIcons, names: iconNames, tracer: tracerMode.value },
-        tracerMode.value === 'vtracer' ? { vtracer_params: getVtracerParams() } : {}
+        tracerMode.value === 'vtracer' ? { vtracer_params: getVtracerParams() } : { potrace_params: getPotraceParams() }
       )),
     });
     const data = await res.json();
@@ -529,8 +640,18 @@ async function runTrace() {
       togBtn.textContent = 'Show Code';
       const cpBtn = document.createElement('button');
       cpBtn.textContent = 'Copy SVG';
+      const dlSvgBtn = document.createElement('button');
+      dlSvgBtn.className = 'dl-btn';
+      dlSvgBtn.textContent = '↓ SVG';
+      dlSvgBtn.addEventListener('click', () => downloadSingleSvg(svg, i));
+      const dlPngBtn = document.createElement('button');
+      dlPngBtn.className = 'dl-btn';
+      dlPngBtn.textContent = '↓ PNG';
+      dlPngBtn.addEventListener('click', () => downloadSinglePng(svg, i));
       actions.appendChild(togBtn);
       actions.appendChild(cpBtn);
+      actions.appendChild(dlSvgBtn);
+      actions.appendChild(dlPngBtn);
       row.appendChild(actions);
 
       const code = document.createElement('pre');
@@ -566,6 +687,79 @@ async function runTrace() {
     traceOutput.textContent = e.message;
     traceStatus.textContent = '';
   }
+}
+
+// ═══════════════════════════════════
+// Downloads
+// ═══════════════════════════════════
+function iconFileName(idx, ext) {
+  const name = (iconNames[idx] || 'icon-' + (idx + 1))
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return name + '.' + ext;
+}
+
+function downloadSingleSvg(svgCode, idx) {
+  const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = iconFileName(idx, 'svg');
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function svgToPngBlob(svgCode, size) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+      const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      canvas.toBlob(b => { URL.revokeObjectURL(url); resolve(b); }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('PNG render failed')); };
+    img.src = url;
+  });
+}
+
+async function downloadSinglePng(svgCode, idx) {
+  const blob = await svgToPngBlob(svgCode, 512);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = iconFileName(idx, 'png');
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadAllSvgsZip() {
+  if (!tracedSvgs.length) return;
+  const zip = new JSZip();
+  tracedSvgs.forEach((svg, i) => zip.file(iconFileName(i, 'svg'), svg));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'icons-svg.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadAllPngsZip() {
+  if (!tracedSvgs.length) return;
+  const zip = new JSZip();
+  await Promise.all(tracedSvgs.map(async (svg, i) => {
+    const blob = await svgToPngBlob(svg, 512);
+    zip.file(iconFileName(i, 'png'), blob);
+  }));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'icons-png.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ═══════════════════════════════════

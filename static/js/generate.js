@@ -28,6 +28,20 @@ const COLOR_LABELS = {
   'earth-tones': 'earth tones (warm browns, greens, tans)',
 };
 
+let refImageData = null;
+
+// ── DOM refs ──
+const decoState = document.getElementById('decoState');
+const mainArea = document.getElementById('mainArea');
+const progressSection = document.getElementById('progressSection');
+const progressLog = document.getElementById('progressLog');
+const generateBtn = document.getElementById('generateBtn');
+const promptEl = document.getElementById('prompt');
+const refFileInput = document.getElementById('refFileInput');
+const refPreview = document.getElementById('refPreview');
+const refThumb = document.getElementById('refThumb');
+const attachBtn = document.getElementById('attachBtn');
+
 // ── Custom Style Dropdown ──
 const styleDropdown = document.getElementById('styleDropdown');
 const styleTrigger = document.getElementById('styleTrigger');
@@ -52,12 +66,124 @@ stylePanel.querySelectorAll('.style-option').forEach(opt => {
   });
 });
 
+// ── Settings toggle ──
+const settingsToggle = document.getElementById('settingsToggle');
+const settingsDrawer = document.getElementById('settingsDrawer');
+
+settingsToggle.addEventListener('click', () => {
+  settingsToggle.classList.toggle('open');
+  settingsDrawer.classList.toggle('open');
+});
+
+// ── Reference image ──
+function setRefImage(dataUrl) {
+  refImageData = dataUrl;
+  refThumb.src = dataUrl;
+  refPreview.classList.remove('hidden');
+  attachBtn.classList.add('has-ref');
+}
+
+function clearRefImage() {
+  refImageData = null;
+  refThumb.src = '';
+  refPreview.classList.add('hidden');
+  attachBtn.classList.remove('has-ref');
+}
+
+function loadRefFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+
+  if (file.type === 'image/svg+xml') {
+    const reader = new FileReader();
+    reader.onload = (e) => rasterizeSvg(e.target.result);
+    reader.readAsDataURL(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = (e) => setRefImage(e.target.result);
+    reader.readAsDataURL(file);
+  }
+}
+
+function rasterizeSvg(svgDataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    setRefImage(canvas.toDataURL('image/png'));
+  };
+  img.onerror = () => showToast('Could not load SVG');
+  img.src = svgDataUrl;
+}
+
+attachBtn.addEventListener('click', () => refFileInput.click());
+refThumb.addEventListener('click', () => refFileInput.click());
+
+refFileInput.addEventListener('change', () => {
+  if (refFileInput.files[0]) loadRefFile(refFileInput.files[0]);
+  refFileInput.value = '';
+});
+
+document.getElementById('refRemove').addEventListener('click', clearRefImage);
+
+// Drag-and-drop on the input card
+const inputCard = document.getElementById('inputCard');
+inputCard.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  inputCard.classList.add('drag-over');
+});
+inputCard.addEventListener('dragleave', () => {
+  inputCard.classList.remove('drag-over');
+});
+inputCard.addEventListener('drop', (e) => {
+  e.preventDefault();
+  inputCard.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadRefFile(file);
+});
+
+// Paste image from clipboard
+promptEl.addEventListener('paste', (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      loadRefFile(item.getAsFile());
+      return;
+    }
+  }
+});
+
 // ── Quick Prompts ──
 document.querySelectorAll('.quick-chip').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.getElementById('prompt').value = btn.dataset.prompt;
-    document.getElementById('prompt').focus();
+    promptEl.value = btn.dataset.prompt;
+    promptEl.focus();
+    autoResizePrompt();
   });
+});
+
+// ── Auto-resize textarea ──
+function autoResizePrompt() {
+  promptEl.style.height = 'auto';
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 120) + 'px';
+}
+promptEl.addEventListener('input', autoResizePrompt);
+
+promptEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.metaKey) {
+    e.preventDefault();
+    if (!generateBtn.disabled) startGeneration();
+  }
 });
 
 // ── Helpers ──
@@ -83,89 +209,78 @@ function fmtTime(ms) {
   return (ms / 1000).toFixed(1) + 's';
 }
 
-// ── Progress Log ──
-const progressSection = document.getElementById('progressSection');
-const progressLog = document.getElementById('progressLog');
+// ── View states ──
+function showResultsState() {
+  decoState.classList.add('hidden');
+  document.getElementById('resultsSection').classList.remove('hidden');
+  mainArea.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Progress (single card, content swaps) ──
 const STEPS = [
   { id: 'plan', num: 1, name: 'Planning', descActive: 'Analyzing your request and designing the icon set...' },
   { id: 'draw', num: 2, name: 'Drawing',  descActive: 'Generating icon grid image...' },
   { id: 'cut',  num: 3, name: 'Cutting',  descActive: 'Cropping individual icons from the grid...' },
   { id: 'vec',  num: 4, name: 'Vectorizing', descActive: 'Converting to scalable SVG vectors...' },
 ];
-let stepTimers = {};
-let stepElements = {};
+let currentTimer = null;
+let currentStepId = null;
 
 function resetProgress() {
-  progressLog.innerHTML = '';
-  stepTimers = {};
-  stepElements = {};
+  if (currentTimer) clearInterval(currentTimer.iv);
+  currentTimer = null;
+  currentStepId = null;
+  progressLog.innerHTML =
+    '<div class="step-card" id="stepCard">' +
+      '<div class="step-indicator" id="stepIndicator"></div>' +
+      '<div class="step-body">' +
+        '<div class="step-header">' +
+          '<span class="step-dots" id="stepDots"></span>' +
+          '<span class="step-name" id="stepName"></span>' +
+          '<span class="step-timer" id="stepTimer"></span>' +
+        '</div>' +
+        '<div class="step-desc" id="stepDesc"></div>' +
+        '<div class="step-error-msg" id="stepError" style="display:none"></div>' +
+      '</div>' +
+    '</div>';
 }
 
 function addStep(stepDef, customDesc) {
-  const entry = document.createElement('div');
-  entry.className = 'step-entry active';
-  entry.id = 'step-' + stepDef.id;
+  if (currentTimer) clearInterval(currentTimer.iv);
+  currentStepId = stepDef.id;
 
-  const desc = customDesc || stepDef.descActive;
+  const card = document.getElementById('stepCard');
+  card.className = 'step-card';
 
-  entry.innerHTML =
-    '<div class="step-rail">' +
-      '<div class="step-indicator">' + stepDef.num + '</div>' +
-      '<div class="step-connector"></div>' +
-    '</div>' +
-    '<div class="step-body">' +
-      '<div class="step-header">' +
-        '<span class="step-name">' + stepDef.name + '</span>' +
-        '<span class="step-timer" id="timer-' + stepDef.id + '">0.0s</span>' +
-      '</div>' +
-      '<div class="step-desc">' + desc + '</div>' +
-      '<div class="step-summary" id="summary-' + stepDef.id + '" style="display:none"></div>' +
-      '<div class="step-error-msg" id="error-' + stepDef.id + '" style="display:none"></div>' +
-    '</div>';
-
-  progressLog.appendChild(entry);
-  stepElements[stepDef.id] = entry;
+  document.getElementById('stepIndicator').textContent = stepDef.num;
+  document.getElementById('stepName').textContent = stepDef.name;
+  document.getElementById('stepDesc').textContent = customDesc || stepDef.descActive;
+  document.getElementById('stepTimer').textContent = '0.0s';
+  document.getElementById('stepError').style.display = 'none';
+  document.getElementById('stepError').textContent = '';
+  document.getElementById('stepDots').innerHTML = STEPS.map((s, i) =>
+    '<span class="dot' + (s.id === stepDef.id ? ' dot--active' : (STEPS.indexOf(stepDef) > i ? ' dot--done' : '')) + '"></span>'
+  ).join('');
 
   const t0 = Date.now();
-  const timerEl = document.getElementById('timer-' + stepDef.id);
-  const iv = setInterval(() => {
-    timerEl.textContent = fmtTime(Date.now() - t0);
-  }, 100);
-  stepTimers[stepDef.id] = { t0, iv };
-
-  entry.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  const timerEl = document.getElementById('stepTimer');
+  const iv = setInterval(() => { timerEl.textContent = fmtTime(Date.now() - t0); }, 100);
+  currentTimer = { t0, iv };
 }
 
-function completeStep(stepId, summaryHtml) {
-  const timer = stepTimers[stepId];
-  if (timer) {
-    clearInterval(timer.iv);
-    const elapsed = fmtTime(Date.now() - timer.t0);
-    document.getElementById('timer-' + stepId).textContent = elapsed;
-  }
-  const entry = stepElements[stepId];
-  if (entry) {
-    entry.classList.remove('active');
-    entry.classList.add('done');
-    entry.querySelector('.step-indicator').innerHTML = '&#10003;';
-  }
-  if (summaryHtml) {
-    const s = document.getElementById('summary-' + stepId);
-    s.innerHTML = summaryHtml;
-    s.style.display = '';
+function completeStep(stepId) {
+  if (currentTimer) {
+    clearInterval(currentTimer.iv);
+    document.getElementById('stepTimer').textContent = fmtTime(Date.now() - currentTimer.t0);
   }
 }
 
 function failStep(stepId, errorMsg, retryFn) {
-  const timer = stepTimers[stepId];
-  if (timer) clearInterval(timer.iv);
-  const entry = stepElements[stepId];
-  if (entry) {
-    entry.classList.remove('active');
-    entry.classList.add('error');
-    entry.querySelector('.step-indicator').innerHTML = '&#10007;';
-  }
-  const errEl = document.getElementById('error-' + stepId);
+  if (currentTimer) clearInterval(currentTimer.iv);
+  const card = document.getElementById('stepCard');
+  card.className = 'step-card error';
+  document.getElementById('stepIndicator').innerHTML = '&#10007;';
+  const errEl = document.getElementById('stepError');
   errEl.textContent = errorMsg;
   errEl.style.display = '';
   if (retryFn) {
@@ -178,18 +293,15 @@ function failStep(stepId, errorMsg, retryFn) {
 }
 
 function updateStepDesc(stepId, desc) {
-  const entry = stepElements[stepId];
-  if (entry) entry.querySelector('.step-desc').textContent = desc;
+  document.getElementById('stepDesc').textContent = desc;
 }
 
 // ── Main Generation Flow ──
 async function startGeneration() {
-  const prompt = document.getElementById('prompt').value.trim();
+  const prompt = promptEl.value.trim();
   if (!prompt) return;
 
-  const btn = document.getElementById('generateBtn');
-  btn.disabled = true;
-  document.getElementById('generateLabel').textContent = 'Generating...';
+  generateBtn.disabled = true;
 
   if (currentAbort) currentAbort.abort();
   currentAbort = new AbortController();
@@ -208,36 +320,40 @@ async function startGeneration() {
 
   const colorMode = document.getElementById('colorMode').value;
   const iconCount = Math.max(4, Math.min(27, parseInt(document.getElementById('iconCount').value) || 9));
-  isColorTrace = colorMode !== 'bw';
 
-  const fullPrompt = prompt +
-    '\n' + STYLE_PREFIX + selectedStyle +
-    '\n' + COUNT_PREFIX + iconCount +
-    '\n' + COLOR_PREFIX + (COLOR_LABELS[colorMode] || colorMode);
+  let fullPrompt;
+  if (refImageData) {
+    isColorTrace = false;
+    fullPrompt = prompt +
+      '\n' + COUNT_PREFIX + iconCount +
+      '\nNote: A reference image has been provided. Match its visual style exactly — stroke weight, color palette, and level of detail. Do NOT apply a separate style.';
+  } else {
+    isColorTrace = colorMode !== 'bw';
+    fullPrompt = prompt +
+      '\n' + STYLE_PREFIX + selectedStyle +
+      '\n' + COUNT_PREFIX + iconCount +
+      '\n' + COLOR_PREFIX + (COLOR_LABELS[colorMode] || colorMode);
+  }
 
   try {
-    // ──── STEP 1: Brief ────
     await runStepBrief(fullPrompt);
     if (currentAbort.signal.aborted) return;
 
-    // ──── STEP 2: Image Gen ────
     await runStepImageGen();
     if (currentAbort.signal.aborted) return;
 
-    // ──── STEP 3: Crop ────
     await runStepCrop();
     if (currentAbort.signal.aborted) return;
 
-    // ──── STEP 4: Trace ────
     await runStepTrace();
     if (currentAbort.signal.aborted) return;
 
+    progressSection.classList.add('hidden');
     renderResults(Date.now() - generationStart);
   } catch (e) {
     if (e.name === 'AbortError') return;
   } finally {
-    btn.disabled = false;
-    document.getElementById('generateLabel').textContent = 'Generate Icons';
+    generateBtn.disabled = false;
     currentAbort = null;
   }
 }
@@ -247,10 +363,13 @@ async function runStepBrief(fullPrompt) {
   const stepDef = STEPS[0];
   addStep(stepDef);
 
+  const briefBody = { prompt: fullPrompt, model: 'gemini-2.0-flash' };
+  if (refImageData) briefBody.reference_image = refImageData;
+
   const res = await fetch('/api/pipeline/brief', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: fullPrompt, model: 'gemini-2.0-flash' }),
+    body: JSON.stringify(briefBody),
     signal: currentAbort.signal,
   });
   const data = await res.json();
@@ -268,10 +387,7 @@ async function runStepBrief(fullPrompt) {
     iconNames = [];
   }
 
-  const nameList = iconNames.length
-    ? 'Planned ' + iconNames.length + ' icons: ' + iconNames.join(', ')
-    : 'Spec generated';
-  completeStep(stepDef.id, nameList);
+  completeStep(stepDef.id);
 }
 
 // ── Step 2: Image Gen ──
@@ -302,14 +418,19 @@ async function runStepImageGen() {
       const specWithBatch = Object.assign({}, parsedSpec, { icons: batches[b] });
       batchPayload = JSON.stringify(specWithBatch, null, 2);
     }
-    const imgPromptBase = isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW : IMAGE_GEN_PROMPT_COLOR;
+    const imgPromptBase = refImageData ? IMAGE_GEN_PROMPT_REF
+      : isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW
+      : IMAGE_GEN_PROMPT_COLOR;
     const briefText = parsedSpec ? JSON.stringify(parsedSpec, null, 2) : '';
     const batchPrompt = batchPayload
       ? imgPromptBase + batchPayload + IMAGE_GEN_SUFFIX
       : imgPromptBase + briefText + IMAGE_GEN_SUFFIX;
 
     const reqBody = { prompt: batchPrompt, model: 'gemini-3.1-flash-image-preview' };
-    if (b > 0 && generatedImages.length > 0) {
+    if (b === 0 && refImageData) {
+      reqBody.reference_image = refImageData;
+      reqBody.user_ref = true;
+    } else if (b > 0 && generatedImages.length > 0) {
       reqBody.reference_image = generatedImages[0];
     }
 
@@ -327,10 +448,7 @@ async function runStepImageGen() {
     if (data.image) generatedImages.push(data.image);
   }
 
-  const summaryHtml = totalBatches > 1
-    ? totalBatches + ' grid images generated'
-    : 'Grid image generated';
-  completeStep(stepDef.id, summaryHtml);
+  completeStep(stepDef.id);
 }
 
 // ── Step 3: Crop ──
@@ -351,7 +469,7 @@ async function runStepCrop() {
   ));
 
   croppedIcons = results.flat();
-  completeStep(stepDef.id, croppedIcons.length + ' icons extracted');
+  completeStep(stepDef.id);
 }
 
 // ── Step 4: Trace ──
@@ -380,14 +498,12 @@ async function runStepTrace() {
 
   tracedSvgs = data.svgs;
   if (data.names) iconNames = data.names;
-  completeStep(stepDef.id, data.svgs.length + ' SVGs ready');
+  completeStep(stepDef.id);
 }
 
 // ── Render Results ──
 function renderResults(totalMs) {
-  const section = document.getElementById('resultsSection');
   const grid = document.getElementById('resultsGrid');
-  section.classList.remove('hidden');
   grid.innerHTML = '';
 
   const totalSec = (totalMs / 1000).toFixed(1);
@@ -409,6 +525,13 @@ function renderResults(totalMs) {
       }
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
+
+      svgEl.querySelectorAll('[stroke]').forEach(el => {
+        if (el.getAttribute('stroke') !== 'none') el.setAttribute('stroke', 'currentColor');
+      });
+      svgEl.querySelectorAll('[fill]').forEach(el => {
+        if (el.getAttribute('fill') !== 'none') el.setAttribute('fill', 'currentColor');
+      });
     }
 
     const name = document.createElement('div');
@@ -435,7 +558,15 @@ function renderResults(totalMs) {
     grid.appendChild(card);
   });
 
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const iconCount = parseInt(document.getElementById('iconCount').value) || 9;
+  const totalCells = Math.max(Math.ceil(iconCount / 5), Math.ceil(tracedSvgs.length / 5)) * 5;
+  for (let i = tracedSvgs.length; i < totalCells; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'icon-card icon-card--empty';
+    grid.appendChild(empty);
+  }
+
+  showResultsState();
 }
 
 // ── Toolbox ──
@@ -463,7 +594,6 @@ function getIconName(i) {
   return (iconNames[i] || 'icon-' + (i + 1)).replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-// Single SVG
 function copySingleSvg(i) {
   navigator.clipboard.writeText(tracedSvgs[i]);
   showToast('SVG copied!');
@@ -474,20 +604,17 @@ function downloadSingleSvg(i) {
   triggerDownload(blob, getIconName(i) + '.svg');
 }
 
-// Single PNG
 function downloadSinglePng(i) {
   svgToPngBlob(tracedSvgs[i], 512, 512).then(blob => {
     triggerDownload(blob, getIconName(i) + '.png');
   });
 }
 
-// Copy All
 function copyAllSvgs() {
   navigator.clipboard.writeText(tracedSvgs.join('\n\n'));
   showToast('All SVGs copied!');
 }
 
-// Bulk SVG zip
 async function downloadAllSvgs() {
   if (typeof JSZip === 'undefined') { showToast('JSZip not loaded'); return; }
   const zip = new JSZip();
@@ -498,7 +625,6 @@ async function downloadAllSvgs() {
   triggerDownload(blob, 'icons-svg.zip');
 }
 
-// Bulk PNG zip
 async function downloadAllPngs() {
   if (typeof JSZip === 'undefined') { showToast('JSZip not loaded'); return; }
   const zip = new JSZip();
@@ -512,7 +638,6 @@ async function downloadAllPngs() {
   triggerDownload(blob, 'icons-png.zip');
 }
 
-// ── SVG to PNG ──
 function svgToPngBlob(svgStr, w, h) {
   return new Promise((resolve, reject) => {
     let processedSvg = svgStr;

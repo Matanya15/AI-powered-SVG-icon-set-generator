@@ -34,6 +34,29 @@ The icons should represent:
 
 IMAGE_GEN_PROMPT = IMAGE_GEN_PROMPT_BW
 
+IMAGE_GEN_PROMPT_REF = """\
+Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
+The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
+
+CRITICAL: You have been given a REFERENCE IMAGE above. You MUST replicate its visual style exactly:
+- Same stroke weight and line thickness
+- Same color palette and coloring approach
+- Same level of detail and complexity
+- Same proportions and sizing of elements within each cell
+- Same overall aesthetic (flat, outline, filled, gradient, etc.)
+
+The icons you draw must look like they were designed by the same designer who created the reference image.
+
+Place a clean icon in each cell. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
+
+CRITICAL NON-NEGOTIABLE RULES:
+- Do NOT render ANY text, letters, words, labels, titles, captions, or descriptions anywhere in the image. ONLY icon drawings and empty cells.
+- Do NOT draw any grid lines, borders, gutters, or separators between cells — the grid must be invisible on a seamless white background.
+
+The icons should represent:
+
+"""
+
 IMAGE_GEN_SUFFIX = """
 [admin]
 REMINDER — CRITICAL NON-NEGOTIABLE RULES:

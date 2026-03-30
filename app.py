@@ -14,7 +14,7 @@ from flask import Flask, request, jsonify, render_template
 from google import genai
 from google.genai import types
 from google.genai.types import Modality
-from system_prompt import SYSTEM_PROMPT, SPEC_PROMPT, IMAGE_GEN_PROMPT_BW, IMAGE_GEN_PROMPT_COLOR, IMAGE_GEN_SUFFIX
+from system_prompt import SYSTEM_PROMPT, SPEC_PROMPT, IMAGE_GEN_PROMPT_BW, IMAGE_GEN_PROMPT_COLOR, IMAGE_GEN_PROMPT_REF, IMAGE_GEN_SUFFIX
 
 load_dotenv()
 
@@ -64,13 +64,28 @@ def is_svg_empty(svg_string):
     return not paths or all(not d.strip() for d in paths)
 
 
-def trace_image_to_svg(png_bytes, name=None):
+POTRACE_DEFAULTS = dict(
+    threshold=128, turdsize=15, alphamax=1.0,
+    opttolerance=1.0, scale=3, invert=False,
+)
+
+
+def trace_image_to_svg(png_bytes, name=None, params=None):
     """Convert PNG bytes to a clean, minimal SVG optimized for flat monochrome icons."""
-    SCALE = 3
+    p = {**POTRACE_DEFAULTS, **(params or {})}
+    scale = max(1, min(6, int(p['scale'])))
+    threshold = max(0, min(255, int(p['threshold'])))
+    turdsize = max(0, min(100, int(p['turdsize'])))
+    alphamax = max(0.0, min(1.334, float(p['alphamax'])))
+    opttolerance = max(0.0, min(5.0, float(p['opttolerance'])))
+    invert = bool(p.get('invert', False))
 
     img = Image.open(io.BytesIO(png_bytes)).convert("L")
-    img = img.resize((img.size[0] * SCALE, img.size[1] * SCALE), Image.LANCZOS)
-    bw = img.point(lambda p: 0 if p < 128 else 255, mode="1")
+    img = img.resize((img.size[0] * scale, img.size[1] * scale), Image.LANCZOS)
+    if invert:
+        bw = img.point(lambda px: 255 if px < threshold else 0, mode="1")
+    else:
+        bw = img.point(lambda px: 0 if px < threshold else 255, mode="1")
     img.close()
 
     pgm_fd, pgm_path = tempfile.mkstemp(suffix=".pgm")
@@ -82,7 +97,8 @@ def trace_image_to_svg(png_bytes, name=None):
         bw.close()
         subprocess.run(
             ["potrace", pgm_path, "-s", "-o", svg_path,
-             "--flat", "-t", "15", "-a", "1.334", "-O", "1.0"],
+             "--flat", "-t", str(turdsize),
+             "-a", str(alphamax), "-O", str(opttolerance)],
             capture_output=True, check=True,
         )
         with open(svg_path) as f:
@@ -202,6 +218,7 @@ def generate_page():
         "generate.html",
         image_gen_prompt_bw=IMAGE_GEN_PROMPT_BW,
         image_gen_prompt_color=IMAGE_GEN_PROMPT_COLOR,
+        image_gen_prompt_ref=IMAGE_GEN_PROMPT_REF,
         image_gen_suffix=IMAGE_GEN_SUFFIX,
     )
 
@@ -217,6 +234,7 @@ def pipeline():
         "pipeline.html",
         image_gen_prompt_bw=IMAGE_GEN_PROMPT_BW,
         image_gen_prompt_color=IMAGE_GEN_PROMPT_COLOR,
+        image_gen_prompt_ref=IMAGE_GEN_PROMPT_REF,
         image_gen_suffix=IMAGE_GEN_SUFFIX,
     )
 
@@ -260,6 +278,7 @@ def pipeline_brief():
     data = request.json
     prompt = data.get("prompt", "").strip()
     model = data.get("model", AVAILABLE_MODELS[0])
+    ref_image = data.get("reference_image")
 
     if not prompt:
         return jsonify({"error": "Prompt cannot be empty"}), 400
@@ -270,10 +289,28 @@ def pipeline_brief():
     }
     config = types.GenerateContentConfig(**kwargs)
 
+    contents = []
+    if ref_image:
+        try:
+            header, b64_ref = ref_image.split(",", 1)
+            mime_ref = header.split(":")[1].split(";")[0] if ":" in header else "image/png"
+            img_bytes = base64.b64decode(b64_ref)
+            print(f"[brief] ref image: mime={mime_ref}, size={len(img_bytes)} bytes", flush=True)
+            contents.append(
+                "The user has attached a reference image. Analyze its visual style — "
+                "stroke weight, color palette, level of detail, and overall aesthetic. "
+                "Use this to inform the style section of the spec and write icon descriptions "
+                "that match this visual language."
+            )
+            contents.append(types.Part.from_bytes(data=img_bytes, mime_type=mime_ref))
+        except Exception as e:
+            print(f"[brief] ERROR parsing ref image: {e}", flush=True)
+    contents.append(prompt)
+
     try:
         start = time.time()
         response = client.models.generate_content(
-            model=model, contents=prompt, config=config,
+            model=model, contents=contents, config=config,
         )
         elapsed = round(time.time() - start, 1)
         return jsonify({"text": response.text, "elapsed": elapsed})
@@ -327,16 +364,34 @@ def pipeline_generate_image():
                 try:
                     header, b64_ref = ref_image.split(",", 1)
                     mime_ref = header.split(":")[1].split(";")[0] if ":" in header else "image/png"
-                    contents.append(
-                        "The following image is a previously generated 3x3 icon grid from the same icon set. "
-                        "Use it as a STYLE REFERENCE — match the exact same stroke weight, line style, level of detail, "
-                        "proportions, and visual language for the new icons below. "
-                        "The new icons must look like they belong to the same family as the ones in the reference image."
-                    )
-                    contents.append(types.Part.from_bytes(data=base64.b64decode(b64_ref), mime_type=mime_ref))
-                except Exception:
-                    pass
+                    img_bytes = base64.b64decode(b64_ref)
+                    is_user_ref = data.get("user_ref", False)
+                    print(f"[ref-image] user_ref={is_user_ref}, mime={mime_ref}, size={len(img_bytes)} bytes", flush=True)
+
+                    if is_user_ref:
+                        ref_instruction = (
+                            "The following image is attached by the user."
+                            "If user provide instructions how you should use the reference image, follow them strictly. If not, use it as a STYLE REFERENCE:"
+                            "Study its visual style — stroke weight, line style, color palette, level of detail, "
+                            "proportions, and overall aesthetic — then generate the icons below matching that style. "
+                            "The generated icons must feel like they belong to the same design system as this reference."
+                        )
+                    else:
+                        ref_instruction = (
+                            "The following image is a previously generated 3x3 icon grid from the same icon set. "
+                            "Use it as a STYLE REFERENCE — match the exact same stroke weight, line style, level of detail, "
+                            "proportions, and visual language for the new icons below."
+                        )
+
+                    ref_part = types.Part.from_bytes(data=img_bytes, mime_type=mime_ref)
+                    contents.append(ref_instruction)
+                    contents.append(ref_part)
+                    contents.append("Now, based on the reference image above, generate the following icons:\n\n")
+                except Exception as e:
+                    print(f"[ref-image] ERROR parsing reference image: {e}", flush=True)
+                    traceback.print_exc()
             contents.append(prompt)
+            print(f"[generate-image] contents has {len(contents)} parts: {[type(c).__name__ for c in contents]}", flush=True)
 
             response = client.models.generate_content(
                 model=model, contents=contents, config=config,
@@ -409,6 +464,7 @@ def pipeline_trace():
     names = data.get("names", [])
     tracer = data.get("tracer", "potrace")
     vtracer_params = data.get("vtracer_params", None)
+    potrace_params = data.get("potrace_params", None)
 
     if not icons:
         return jsonify({"error": "No icons provided"}), 400
@@ -425,7 +481,7 @@ def pipeline_trace():
             if tracer == "vtracer":
                 svg = trace_image_to_svg_color(raw_bytes, name=name, params=vtracer_params)
             else:
-                svg = trace_image_to_svg(raw_bytes, name=name)
+                svg = trace_image_to_svg(raw_bytes, name=name, params=potrace_params)
             if not is_svg_empty(svg):
                 svgs.append(svg)
                 kept_names.append(name or "")
