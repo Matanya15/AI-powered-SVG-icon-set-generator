@@ -6,7 +6,7 @@
 
 # """
 
-IMAGE_GEN_PROMPT = """\
+IMAGE_GEN_PROMPT_BW = """\
 Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
 The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
 Place a simple, clean, black icon in each cell that has a description below. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
@@ -14,6 +14,44 @@ Place a simple, clean, black icon in each cell that has a description below. If 
 CRITICAL NON-NEGOTIABLE RULES: 
 - Do NOT render ANY text, letters, words, labels, titles, captions, or descriptions anywhere in the image. The image must contain ONLY the icon drawings and empty cells — nothing else. Ignore any names below — they are just for your understanding of what to draw, NOT to be written in the image.
 - Do NOT draw any grid lines, borders, gutters, or separators between cells — the grid should be invisible, with icons placed in their positions on a seamless white background. This is important because the image will be programmatically cropped into 9 equal parts, and any visible grid lines would become unwanted artifacts in the individual icon images.
+
+The icons should represent:
+
+"""
+
+IMAGE_GEN_PROMPT_COLOR = """\
+Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
+The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
+Place a clean icon in each cell using the color scheme specified below. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
+
+CRITICAL NON-NEGOTIABLE RULES: 
+- Do NOT render ANY text, letters, words, labels, titles, captions, or descriptions anywhere in the image. The image must contain ONLY the icon drawings and empty cells — nothing else. Ignore any names below — they are just for your understanding of what to draw, NOT to be written in the image.
+- Do NOT draw any grid lines, borders, gutters, or separators between cells — the grid should be invisible, with icons placed in their positions on a seamless white background. This is important because the image will be programmatically cropped into 9 equal parts, and any visible grid lines would become unwanted artifacts in the individual icon images.
+
+The icons should represent:
+
+"""
+
+IMAGE_GEN_PROMPT = IMAGE_GEN_PROMPT_BW
+
+IMAGE_GEN_PROMPT_REF = """\
+Generate a small 512x512 pixel square image containing a 3x3 grid on a white background.
+The grid MUST always have exactly 9 equal-sized cells (3 columns, 3 rows).
+
+CRITICAL: You have been given a REFERENCE IMAGE above. You MUST replicate its visual style exactly:
+- Same stroke weight and line thickness
+- Same color palette and coloring approach
+- Same level of detail and complexity
+- Same proportions and sizing of elements within each cell
+- Same overall aesthetic (flat, outline, filled, gradient, etc.)
+
+The icons you draw must look like they were designed by the same designer who created the reference image.
+
+Place a clean icon in each cell. If fewer than 9 icons are described, leave the remaining cells empty (plain white).
+
+CRITICAL NON-NEGOTIABLE RULES:
+- Do NOT render ANY text, letters, words, labels, titles, captions, or descriptions anywhere in the image. ONLY icon drawings and empty cells.
+- Do NOT draw any grid lines, borders, gutters, or separators between cells — the grid must be invisible on a seamless white background.
 
 The icons should represent:
 
@@ -44,13 +82,13 @@ Return a JSON object with this exact structure:
     "colors": "monochrome, works on light/dark backgrounds"
   },
   "icons": [
-    { "name": "batteryFull", "description": "Full battery, simple rectangular outline with positive terminal" },
-    { "name": "chargingStation", "description": "Minimal outline of a charging station with cable" }
+    { "name": "Battery Full", "description": "Full battery, simple rectangular outline with positive terminal" },
+    { "name": "Charging Station", "description": "Minimal outline of a charging station with cable" }
   ]
 }
 
 Rules:
-- "name" must be camelCase (no spaces, no special characters)
+- "name" must be human-readable Title Case with spaces (e.g. "Shopping Cart", "Heart Rate", "Bar Chart")
 - "description" is a short visual description of what to draw — describe the shapes, not abstract concepts
 - Return the appropriate number of icons (4 to 27)
 - Return ONLY valid JSON, nothing else

@@ -81,7 +81,7 @@ select {
   outline: none;
   transition: border-color 0.2s;
 }
-select:hover, select:focus { border-color: #8b5cf6; }
+select:hover, select:focus { border-color: #ff631f; }
 
 .input-area { position: relative; }
 
@@ -101,7 +101,7 @@ textarea {
   transition: border-color 0.2s;
   line-height: 1.5;
 }
-textarea:focus { border-color: #8b5cf6; }
+textarea:focus { border-color: #ff631f; }
 textarea::placeholder { color: #555; }
 
 .input-footer {
@@ -114,7 +114,7 @@ textarea::placeholder { color: #555; }
 }
 
 button {
-  background: #8b5cf6;
+  background: #ff631f;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -168,7 +168,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #888;
   min-height: 1.2em;
 }
-.status .timer { color: #8b5cf6; font-variant-numeric: tabular-nums; }
+.status .timer { color: #ff631f; font-variant-numeric: tabular-nums; }
 
 .loading {
   display: flex;
@@ -179,7 +179,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .spinner {
   width: 16px; height: 16px;
   border: 2px solid #333;
-  border-top-color: #8b5cf6;
+  border-top-color: #ff631f;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -306,7 +306,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   transition: background 0.15s, color 0.15s;
 }
 .toolbox-btn:hover { background: #2e2e2e; color: #e0e0e0; }
-.toolbox-btn.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
+.toolbox-btn.active { background: #ff631f; color: #fff; border-color: #ff631f; }
 
 .size-slider {
   -webkit-appearance: none;
@@ -319,13 +319,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .size-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px; height: 14px;
-  background: #8b5cf6;
+  background: #ff631f;
   border-radius: 50%;
   cursor: pointer;
 }
 .size-slider::-moz-range-thumb {
   width: 14px; height: 14px;
-  background: #8b5cf6;
+  background: #ff631f;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -333,7 +333,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .size-value {
   font-size: 0.68rem;
-  color: #8b5cf6;
+  color: #ff631f;
   font-variant-numeric: tabular-nums;
   min-width: 36px;
   text-align: right;

@@ -15,7 +15,7 @@ function toggleMode() {
 sizeSlider.addEventListener('input', () => {
   const pct = sizeSlider.value;
   sizeValueEl.textContent = pct + '%';
-  document.querySelectorAll('.svg-preview svg').forEach(s => { s.style.width = pct + '%'; });
+  document.querySelectorAll('.svg-preview svg').forEach(s => { s.style.width = pct + '%'; s.style.maxWidth = pct + '%'; });
 });
 
 // ── Timer helper ──
@@ -39,7 +39,152 @@ let generatedImages = [];
 let croppedIcons = [];
 let tracedSvgs = [];
 let iconNames = [];
+let isColorTrace = false;
 let parsedSpec = null;
+let pipeRefImageData = null;
+
+// ── Reference image ──
+const pipeRefFileInput = document.getElementById('pipeRefFileInput');
+const pipeRefPreview = document.getElementById('pipeRefPreview');
+const pipeRefThumb = document.getElementById('pipeRefThumb');
+const pipeAttachBtn = document.getElementById('pipeAttachBtn');
+
+const imageGenRefBadge = document.getElementById('imageGenRefBadge');
+const imageGenRefThumb = document.getElementById('imageGenRefThumb');
+
+function syncRefBadge() {
+  if (pipeRefImageData) {
+    imageGenRefThumb.src = pipeRefImageData;
+    imageGenRefBadge.classList.remove('hidden');
+  } else {
+    imageGenRefBadge.classList.add('hidden');
+    imageGenRefThumb.src = '';
+  }
+}
+
+function setPipeRef(dataUrl) {
+  pipeRefImageData = dataUrl;
+  pipeRefThumb.src = dataUrl;
+  pipeRefPreview.classList.remove('hidden');
+  pipeAttachBtn.classList.add('has-ref');
+  syncRefBadge();
+}
+
+function clearPipeRef() {
+  pipeRefImageData = null;
+  pipeRefThumb.src = '';
+  pipeRefPreview.classList.add('hidden');
+  pipeAttachBtn.classList.remove('has-ref');
+  syncRefBadge();
+}
+
+function loadPipeRefFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (file.type === 'image/svg+xml') {
+    const reader = new FileReader();
+    reader.onload = () => rasterizePipeSvg(reader.result);
+    reader.readAsDataURL(file);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => setPipeRef(reader.result);
+  reader.readAsDataURL(file);
+}
+
+function rasterizePipeSvg(svgDataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    setPipeRef(canvas.toDataURL('image/png'));
+  };
+  img.src = svgDataUrl;
+}
+
+pipeAttachBtn.addEventListener('click', () => pipeRefFileInput.click());
+pipeRefThumb.addEventListener('click', () => pipeRefFileInput.click());
+
+pipeRefFileInput.addEventListener('change', () => {
+  if (pipeRefFileInput.files[0]) loadPipeRefFile(pipeRefFileInput.files[0]);
+  pipeRefFileInput.value = '';
+});
+
+document.getElementById('pipeRefRemove').addEventListener('click', clearPipeRef);
+document.getElementById('imageGenRefClear').addEventListener('click', clearPipeRef);
+
+// ── Potrace tuning panel ──
+const potraceTuning = document.getElementById('potraceTuning');
+const tracerModeSelect = document.getElementById('tracerMode');
+const ptSliders = {
+  threshold:     { slider: document.getElementById('sliderThreshold'), label: document.getElementById('valThreshold') },
+  turdsize:      { slider: document.getElementById('sliderTurd'),      label: document.getElementById('valTurd') },
+  alphamax:      { slider: document.getElementById('sliderAlpha'),     label: document.getElementById('valAlpha') },
+  opttolerance:  { slider: document.getElementById('sliderOptTol'),    label: document.getElementById('valOptTol') },
+  scale:         { slider: document.getElementById('sliderScale'),     label: document.getElementById('valScale') },
+};
+const ptInvertCheck = document.getElementById('checkInvert');
+
+Object.values(ptSliders).forEach(({ slider, label }) => {
+  slider.addEventListener('input', () => { label.textContent = slider.value; });
+});
+
+function getPotraceParams() {
+  return {
+    threshold:    Number(ptSliders.threshold.slider.value),
+    turdsize:     Number(ptSliders.turdsize.slider.value),
+    alphamax:     Number(ptSliders.alphamax.slider.value),
+    opttolerance: Number(ptSliders.opttolerance.slider.value),
+    scale:        Number(ptSliders.scale.slider.value),
+    invert:       ptInvertCheck.checked,
+  };
+}
+
+// ── VTracer tuning panel ──
+const vtracerTuning = document.getElementById('vtracerTuning');
+const vtSliders = {
+  filter_speckle: { slider: document.getElementById('sliderSpeckle'), label: document.getElementById('valSpeckle') },
+  color_precision: { slider: document.getElementById('sliderColorPrec'), label: document.getElementById('valColorPrec') },
+  layer_difference: { slider: document.getElementById('sliderLayerDiff'), label: document.getElementById('valLayerDiff') },
+  corner_threshold: { slider: document.getElementById('sliderCorner'), label: document.getElementById('valCorner') },
+  length_threshold: { slider: document.getElementById('sliderLength'), label: document.getElementById('valLength') },
+  splice_threshold: { slider: document.getElementById('sliderSplice'), label: document.getElementById('valSplice') },
+  max_iterations: { slider: document.getElementById('sliderMaxIter'), label: document.getElementById('valMaxIter') },
+  path_precision: { slider: document.getElementById('sliderPathPrec'), label: document.getElementById('valPathPrec') },
+};
+const vtModeSelect = document.getElementById('selectMode');
+const vtHierarchicalSelect = document.getElementById('selectHierarchical');
+
+Object.values(vtSliders).forEach(({ slider, label }) => {
+  slider.addEventListener('input', () => { label.textContent = slider.value; });
+});
+
+tracerModeSelect.addEventListener('change', () => {
+  const isVtracer = tracerModeSelect.value === 'vtracer';
+  vtracerTuning.style.display = isVtracer ? 'grid' : 'none';
+  potraceTuning.style.display = isVtracer ? 'none' : 'grid';
+});
+
+function getVtracerParams() {
+  return {
+    filter_speckle: Number(vtSliders.filter_speckle.slider.value),
+    color_precision: Number(vtSliders.color_precision.slider.value),
+    layer_difference: Number(vtSliders.layer_difference.slider.value),
+    corner_threshold: Number(vtSliders.corner_threshold.slider.value),
+    length_threshold: Number(vtSliders.length_threshold.slider.value),
+    splice_threshold: Number(vtSliders.splice_threshold.slider.value),
+    max_iterations: Number(vtSliders.max_iterations.slider.value),
+    path_precision: Number(vtSliders.path_precision.slider.value),
+    mode: vtModeSelect.value,
+    hierarchical: vtHierarchicalSelect.value,
+  };
+}
 
 function chunkArray(arr, size) {
   const chunks = [];
@@ -61,15 +206,41 @@ const briefForward = document.getElementById('briefForward');
 const briefTimer = createTimer(briefStatus);
 let briefCtrl = null;
 let briefText = '';
+let pipelineStartTime = null;
 
 briefPrompt.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runBrief(); }
 });
 
+document.querySelectorAll('.quick-prompt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    briefPrompt.value = btn.dataset.prompt;
+    briefPrompt.focus();
+  });
+});
+
+const briefColorMode = document.getElementById('briefColorMode');
+
 const STYLE_PREFIX = 'Icon style family should be: ';
-const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$');
+const styleRegex = new RegExp('\\n?' + STYLE_PREFIX + '.*$', 'm');
 const COUNT_PREFIX = 'Number of icons: ';
-const countRegex = new RegExp('\\n?' + COUNT_PREFIX + '\\d+');
+const countRegex = new RegExp('\\n?' + COUNT_PREFIX + '\\d+.*$', 'm');
+const COLOR_PREFIX = 'Icon color mode: ';
+const colorRegex = new RegExp('\\n?' + COLOR_PREFIX + '.*$', 'm');
+
+const COLOR_LABELS = {
+  'bw': 'black & white only',
+  'grayscale': 'grayscale (shades of gray)',
+  'monochrome': 'monochrome single hue (e.g. all blue or all teal)',
+  'duotone': 'duotone (two contrasting colors)',
+  'pastel': 'pastel soft colors',
+  'vibrant': 'vibrant colorful',
+  'gradient': 'gradient fills',
+  'neon-colors': 'neon bright glowing colors',
+  'earth-tones': 'earth tones (warm browns, greens, tans)',
+};
+
+function isBlackAndWhite() { return briefColorMode.value === 'bw'; }
 
 function updatePromptLine(prefix, regex, value) {
   const newLine = '\n' + prefix + value;
@@ -90,12 +261,27 @@ briefIconCount.addEventListener('change', () => {
   updatePromptLine(COUNT_PREFIX, countRegex, v);
 });
 
+briefColorMode.addEventListener('change', () => {
+  updatePromptLine(COLOR_PREFIX, colorRegex, COLOR_LABELS[briefColorMode.value] || briefColorMode.value);
+  const tracerMode = document.getElementById('tracerMode');
+  if (isBlackAndWhite()) {
+    tracerMode.value = 'potrace';
+  } else {
+    tracerMode.value = 'vtracer';
+  }
+  tracerMode.dispatchEvent(new Event('change'));
+});
+
 async function runBrief() {
+  pipelineStartTime = Date.now();
   if (!styleRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + STYLE_PREFIX + briefStyle.value;
   }
   if (!countRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
     briefPrompt.value += '\n' + COUNT_PREFIX + briefIconCount.value;
+  }
+  if (!colorRegex.test(briefPrompt.value) && briefPrompt.value.trim()) {
+    briefPrompt.value += '\n' + COLOR_PREFIX + (COLOR_LABELS[briefColorMode.value] || briefColorMode.value);
   }
   const prompt = briefPrompt.value.trim();
   if (!prompt) return;
@@ -110,10 +296,12 @@ async function runBrief() {
   briefTimer.start();
 
   try {
+    const briefBody = { prompt, model: briefModel.value };
+    if (pipeRefImageData) briefBody.reference_image = pipeRefImageData;
     const res = await fetch('/api/pipeline/brief', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model: briefModel.value }),
+      body: JSON.stringify(briefBody),
       signal: briefCtrl.signal,
     });
     const data = await res.json();
@@ -225,12 +413,17 @@ async function runImageGen() {
         const specWithBatch = Object.assign({}, parsedSpec, { icons: batches[b] });
         batchPayload = JSON.stringify(specWithBatch, null, 2);
       }
+      const imgPromptBase = (b === 0 && pipeRefImageData) ? IMAGE_GEN_PROMPT_REF
+        : isBlackAndWhite() ? IMAGE_GEN_PROMPT_BW : IMAGE_GEN_PROMPT_COLOR;
       const batchPrompt = batchPayload
-        ? IMAGE_GEN_PROMPT + batchPayload + IMAGE_GEN_SUFFIX
-        : IMAGE_GEN_PROMPT + brief + IMAGE_GEN_SUFFIX;
+        ? imgPromptBase + batchPayload + IMAGE_GEN_SUFFIX
+        : imgPromptBase + brief + IMAGE_GEN_SUFFIX;
 
       const reqBody = { prompt: batchPrompt, model: imageGenModel.value };
-      if (b > 0 && generatedImages.length > 0) {
+      if (b === 0 && pipeRefImageData) {
+        reqBody.reference_image = pipeRefImageData;
+        reqBody.user_ref = true;
+      } else if (b > 0 && generatedImages.length > 0) {
         reqBody.reference_image = generatedImages[0];
       }
 
@@ -371,8 +564,11 @@ async function runTrace() {
   if (!croppedIcons.length) return;
   tracedSvgs = [];
 
+  const tracerMode = document.getElementById('tracerMode');
+  isColorTrace = tracerMode.value === 'vtracer';
+
   traceOutput.className = 'output-card visible';
-  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing ' + croppedIcons.length + ' icons...</div>';
+  traceOutput.innerHTML = '<div class="loading"><div class="spinner"></div>Tracing ' + croppedIcons.length + ' icons (' + tracerMode.value + ')...</div>';
   traceGrid.style.display = 'none';
   traceGrid.innerHTML = '';
   traceActions.style.display = 'none';
@@ -384,7 +580,10 @@ async function runTrace() {
     const res = await fetch('/api/pipeline/trace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ icons: croppedIcons, names: iconNames }),
+      body: JSON.stringify(Object.assign(
+        { icons: croppedIcons, names: iconNames, tracer: tracerMode.value },
+        tracerMode.value === 'vtracer' ? { vtracer_params: getVtracerParams() } : { potrace_params: getPotraceParams() }
+      )),
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'HTTP ' + res.status);
@@ -414,9 +613,17 @@ async function runTrace() {
       const preview = document.createElement('div');
       preview.className = 'trace-row-svg svg-preview';
       if (lightMode) preview.classList.add('light');
+      if (isColorTrace) preview.classList.add('color-svg');
       preview.innerHTML = svg;
       const svgEl = preview.querySelector('svg');
-      if (svgEl) svgEl.style.width = sizeSlider.value + '%';
+      if (svgEl) {
+        if (!svgEl.getAttribute('viewBox') && svgEl.getAttribute('width') && svgEl.getAttribute('height')) {
+          svgEl.setAttribute('viewBox', '0 0 ' + svgEl.getAttribute('width') + ' ' + svgEl.getAttribute('height'));
+        }
+        svgEl.removeAttribute('width');
+        svgEl.removeAttribute('height');
+        svgEl.style.width = sizeSlider.value + '%';
+      }
 
       top.appendChild(ref);
       top.appendChild(preview);
@@ -433,8 +640,18 @@ async function runTrace() {
       togBtn.textContent = 'Show Code';
       const cpBtn = document.createElement('button');
       cpBtn.textContent = 'Copy SVG';
+      const dlSvgBtn = document.createElement('button');
+      dlSvgBtn.className = 'dl-btn';
+      dlSvgBtn.textContent = '↓ SVG';
+      dlSvgBtn.addEventListener('click', () => downloadSingleSvg(svg, i));
+      const dlPngBtn = document.createElement('button');
+      dlPngBtn.className = 'dl-btn';
+      dlPngBtn.textContent = '↓ PNG';
+      dlPngBtn.addEventListener('click', () => downloadSinglePng(svg, i));
       actions.appendChild(togBtn);
       actions.appendChild(cpBtn);
+      actions.appendChild(dlSvgBtn);
+      actions.appendChild(dlPngBtn);
       row.appendChild(actions);
 
       const code = document.createElement('pre');
@@ -458,13 +675,91 @@ async function runTrace() {
     traceActions.style.display = 'flex';
     toolbox.classList.add('visible');
 
-    traceStatus.innerHTML = data.svgs.length + ' icons traced in <span class="timer">' + data.elapsed + 's</span>';
+    let statusMsg = data.svgs.length + ' icons traced in <span class="timer">' + data.elapsed + 's</span>';
+    if (pipelineStartTime) {
+      const totalSec = ((Date.now() - pipelineStartTime) / 1000).toFixed(1);
+      statusMsg += ' &mdash; total pipeline: <span class="timer">' + totalSec + 's</span>';
+    }
+    traceStatus.innerHTML = statusMsg;
   } catch (e) {
     traceTimer.stop();
     traceOutput.className = 'output-card visible error';
     traceOutput.textContent = e.message;
     traceStatus.textContent = '';
   }
+}
+
+// ═══════════════════════════════════
+// Downloads
+// ═══════════════════════════════════
+function iconFileName(idx, ext) {
+  const name = (iconNames[idx] || 'icon-' + (idx + 1))
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return name + '.' + ext;
+}
+
+function downloadSingleSvg(svgCode, idx) {
+  const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = iconFileName(idx, 'svg');
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function svgToPngBlob(svgCode, size) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+      const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      canvas.toBlob(b => { URL.revokeObjectURL(url); resolve(b); }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('PNG render failed')); };
+    img.src = url;
+  });
+}
+
+async function downloadSinglePng(svgCode, idx) {
+  const blob = await svgToPngBlob(svgCode, 512);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = iconFileName(idx, 'png');
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadAllSvgsZip() {
+  if (!tracedSvgs.length) return;
+  const zip = new JSZip();
+  tracedSvgs.forEach((svg, i) => zip.file(iconFileName(i, 'svg'), svg));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'icons-svg.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadAllPngsZip() {
+  if (!tracedSvgs.length) return;
+  const zip = new JSZip();
+  await Promise.all(tracedSvgs.map(async (svg, i) => {
+    const blob = await svgToPngBlob(svg, 512);
+    zip.file(iconFileName(i, 'png'), blob);
+  }));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'icons-png.zip';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ═══════════════════════════════════
@@ -475,10 +770,24 @@ const mockupOverlay = document.getElementById('mockupOverlay');
 function openMockup() {
   if (!tracedSvgs.length) return;
 
+  function fixSvgViewBox(container) {
+    const s = container.querySelector('svg');
+    if (!s) return;
+    if (!s.getAttribute('viewBox') && s.getAttribute('width') && s.getAttribute('height')) {
+      s.setAttribute('viewBox', '0 0 ' + s.getAttribute('width') + ' ' + s.getAttribute('height'));
+    }
+    s.removeAttribute('width');
+    s.removeAttribute('height');
+  }
+
   // Nav icons — first 3 SVGs
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById('mockupNavIcon' + i);
-    if (el) el.innerHTML = tracedSvgs[i] || '';
+    if (el) {
+      el.innerHTML = tracedSvgs[i] || '';
+      el.classList.toggle('color-svg', isColorTrace);
+      fixSvgViewBox(el);
+    }
   }
 
   // Feature cards — dynamically generated from all traced SVGs
@@ -490,11 +799,13 @@ function openMockup() {
   tracedSvgs.forEach((svg, i) => {
     const card = document.createElement('div');
     card.className = 'mockup-feature';
+    const colorClass = isColorTrace ? ' color-svg' : '';
     card.innerHTML =
-      '<div class="mockup-feature-icon">' + svg + '</div>' +
+      '<div class="mockup-feature-icon' + colorClass + '">' + svg + '</div>' +
       '<div class="mockup-feature-label">' + (iconNames[i] || 'Feature') + '</div>' +
       '<div class="mockup-feature-desc"></div>' +
       '<div class="mockup-feature-desc2"></div>';
+    fixSvgViewBox(card.querySelector('.mockup-feature-icon'));
     featuresContainer.appendChild(card);
   });
 
